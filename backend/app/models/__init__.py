@@ -1,0 +1,143 @@
+from backend.app.core.database import Base
+from backend.app.models.base import CommonMixin
+from backend.app.models.identity import (
+    Role,
+    User,
+    UserRole,
+    AuthenticationAccount,
+    UserSession,
+)
+from backend.app.models.academic import (
+    Institution,
+    Department,
+    Programme,
+    Branch,
+    AcademicYear,
+    Semester,
+    Batch,
+)
+from backend.app.models.student import (
+    Skill,
+    StudentProfile,
+    StudentSkill,
+    Project,
+    ResumeMetadata,
+    ProfileVisibility,
+)
+from backend.app.models.faculty import (
+    FacultyProfile,
+    FacultyResearchInterest,
+    FacultyEducation,
+    FacultyExperience,
+    FacultyPublication,
+    FacultySource,
+)
+from backend.app.models.application import (
+    Application,
+    ApplicationVersionModel,
+    ApplicationStatusHistory,
+    ApplicationShare,
+    ApplicationDocument,
+)
+from backend.app.models.communication import (
+    Conversation,
+    Message,
+    Notification,
+    Feedback,
+)
+from backend.app.models.document import (
+    InstitutionalDocument,
+    DocumentVersion,
+    DocumentAudience,
+    DocumentExtractionJob,
+    ExtractedDocumentContent,
+    ExtractedTable,
+    DocumentPublicationHistory,
+    DocumentSource,
+)
+from backend.app.models.academic_records import (
+    TimetableEntry,
+    ExaminationEntry,
+    AcademicCalendarEntry,
+    ResultRecord,
+    ResultSubject,
+)
+from backend.app.models.admin import (
+    AuditLog,
+    AdminConfiguration,
+    ImportJob,
+    ImportErrorRecord,
+)
+from backend.app.models.website import (
+    InstitutionalSource,
+    SourcePage,
+    CrawlRun,
+    ExtractedWebDocument,
+    InstitutionalPortal,
+)
+from backend.app.models.roster import (
+    RosterImportBatch,
+    ExcelSyncJob,
+)
+
+__all__ = [
+    "Base",
+    "CommonMixin",
+    "Role",
+    "User",
+    "UserRole",
+    "AuthenticationAccount",
+    "UserSession",
+    "Institution",
+    "Department",
+    "Programme",
+    "Branch",
+    "AcademicYear",
+    "Semester",
+    "Batch",
+    "Skill",
+    "StudentProfile",
+    "StudentSkill",
+    "Project",
+    "ResumeMetadata",
+    "ProfileVisibility",
+    "FacultyProfile",
+    "FacultyResearchInterest",
+    "FacultyEducation",
+    "FacultyExperience",
+    "FacultyPublication",
+    "FacultySource",
+    "Application",
+    "ApplicationVersionModel",
+    "ApplicationStatusHistory",
+    "ApplicationShare",
+    "ApplicationDocument",
+    "Conversation",
+    "Message",
+    "Notification",
+    "Feedback",
+    "InstitutionalDocument",
+    "DocumentVersion",
+    "DocumentAudience",
+    "DocumentExtractionJob",
+    "ExtractedDocumentContent",
+    "ExtractedTable",
+    "DocumentPublicationHistory",
+    "DocumentSource",
+    "TimetableEntry",
+    "ExaminationEntry",
+    "AcademicCalendarEntry",
+    "ResultRecord",
+    "ResultSubject",
+    "AuditLog",
+    "AdminConfiguration",
+    "ImportJob",
+    "ImportErrorRecord",
+    "InstitutionalSource",
+    "SourcePage",
+    "CrawlRun",
+    "ExtractedWebDocument",
+    "InstitutionalPortal",
+    "RosterImportBatch",
+    "ExcelSyncJob",
+]

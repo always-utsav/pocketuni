@@ -1,0 +1,27 @@
+PocketUni Sample Template — Verify institutional format before official submission.
+
+Date: [DATE]
+
+To,
+The Registrar / Dean Academics,
+Madhav Institute of Technology & Science (MITS),
+Gwalior (M.P.) - 474005
+
+Subject: Request for Issuance of Bonafide Certificate — Reg.
+
+Respected Sir/Madam,
+
+I am a regular bonafide student of [PROGRAMME] in [BRANCH] at MITS Gwalior, currently enrolled in the [SEMESTER] semester (Academic Year [ACADEMIC_YEAR]).
+
+I require an official Bonafide Certificate for the purpose of [PURPOSE] (e.g., educational scholarship / education loan / passport verification).
+
+Kindly issue the certificate at your earliest convenience. My academic registration details are stated below.
+
+Thanking you.
+
+Yours faithfully,
+
+[STUDENT_NAME]
+Roll Number: [ROLL_NUMBER]
+Branch: [BRANCH]
+Contact: [STUDENT_EMAIL]

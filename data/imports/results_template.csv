@@ -1,0 +1,4 @@
+roll_number,student_name,programme,branch,academic_year,semester,subject_code,subject_name,credits,marks_obtained,maximum_marks,grade
+DEMO-0901AI231012,Mahi Gupta,B.Tech,B.Tech Artificial Intelligence,2026-2027,5th Sem,CS-3101,Deep Neural Networks,4.0,94.0,100.0,O
+DEMO-0901AI231012,Mahi Gupta,B.Tech,B.Tech Artificial Intelligence,2026-2027,5th Sem,AI-3102,Optimization Techniques in AI,4.0,91.0,100.0,O
+DEMO-0901ML231018,Ankur Singh Yadav,B.Tech,B.Tech AI & Machine Learning,2026-2027,5th Sem,CS-3101,Deep Neural Networks,4.0,90.0,100.0,A+

@@ -1,0 +1,29 @@
+PocketUni Sample Template — Verify institutional format before official submission.
+
+Date: [DATE]
+
+To,
+The Head of Department,
+[DEPARTMENT_NAME],
+Madhav Institute of Technology & Science (MITS),
+Gwalior (M.P.) - 474005
+
+Subject: Application for Grant of Leave — Reg.
+
+Respected Sir/Madam,
+
+I am writing to formally request leave of absence from [START_DATE] to [END_DATE] due to [REASON].
+
+I have informed my class coordinator and arranged with my peers to cover all missed theory classes and laboratory assignments. The relevant documents/prescriptions are attached herewith for your kind consideration.
+
+I earnestly request you to grant me leave for the specified duration and condone the attendance.
+
+Thanking you.
+
+Yours faithfully,
+
+[STUDENT_NAME]
+Roll Number: [ROLL_NUMBER]
+Branch: [BRANCH]
+Year of Study: [YEAR_OF_STUDY]
+Semester: [SEMESTER]
