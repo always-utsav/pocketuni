@@ -82,6 +82,13 @@ export const ApplicationListView: React.FC = () => {
             Rejected
           </span>
         );
+      case 'revision_requested':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <AlertCircle className="w-3 h-3 text-amber-600" />
+            Revision Requested
+          </span>
+        );
     }
   };
 
@@ -174,6 +181,17 @@ export const ApplicationListView: React.FC = () => {
             }`}
           >
             Rejected ({userApplications.filter(a => a.status === 'rejected').length})
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('revision_requested')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+              statusFilter === 'revision_requested'
+                ? 'bg-brand-primary text-white shadow-subtle'
+                : 'bg-white border border-brand-border text-brand-muted hover:text-brand-primary'
+            }`}
+          >
+            Revision Requested ({userApplications.filter(a => a.status === 'revision_requested').length})
           </button>
         </div>
 

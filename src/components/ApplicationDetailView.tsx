@@ -12,7 +12,9 @@ import {
   FileCheck,
   Send,
   Calendar,
-  Building
+  Building,
+  Edit,
+  RotateCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useApp } from '../context/AppContext';
@@ -24,6 +26,7 @@ export const ApplicationDetailView: React.FC = () => {
     applications,
     selectedApplicationId,
     decideApplication,
+    resubmitApplication,
     setActiveView
   } = useApp();
 
@@ -31,6 +34,10 @@ export const ApplicationDetailView: React.FC = () => {
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
+  const [revisionReason, setRevisionReason] = useState('');
+  const [isResubmitModalOpen, setIsResubmitModalOpen] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const application = applications.find(a => a.id === selectedApplicationId);
@@ -89,6 +96,28 @@ export const ApplicationDetailView: React.FC = () => {
       setIsRejectModalOpen(false);
     } else {
       setErrorMsg('This application has already been decided.');
+    }
+  };
+
+  const handleConfirmRevision = () => {
+    if (!application) return;
+    const ok = decideApplication(
+      application.id,
+      'revision_requested',
+      revisionReason.trim() || 'Please revise document details, attach required documentation, and resubmit.'
+    );
+    if (ok) {
+      setIsRevisionModalOpen(false);
+    } else {
+      setErrorMsg('This application has already been decided.');
+    }
+  };
+
+  const handleConfirmResubmit = () => {
+    if (!application || !editedContent.trim()) return;
+    const ok = resubmitApplication(application.id, editedContent.trim());
+    if (ok) {
+      setIsResubmitModalOpen(false);
     }
   };
 
@@ -237,7 +266,15 @@ export const ApplicationDetailView: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <button
+                onClick={() => setIsRevisionModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-600 text-amber-100 hover:text-white text-xs font-semibold border border-amber-400/40 transition-all flex items-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Request Revision</span>
+              </button>
+
               <button
                 onClick={() => setIsRejectModalOpen(true)}
                 className="px-4 py-2 rounded-xl bg-white/10 hover:bg-rose-600 text-white text-xs font-semibold border border-white/20 transition-all"
@@ -253,6 +290,31 @@ export const ApplicationDetailView: React.FC = () => {
                 <span>Approve Application</span>
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Student Revision Alert & Resubmit Action */}
+        {!isFaculty && application.status === 'revision_requested' && (
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-subtle">
+            <div>
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+                <span>Faculty Reviewer Requested Revisions</span>
+              </div>
+              <p className="text-xs text-amber-800 mt-1">
+                {application.decisionNote || 'Please update the requested document details and resubmit for mentor review.'}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setEditedContent(application.content);
+                setIsResubmitModalOpen(true);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-subtle shrink-0 flex items-center gap-1.5 transition-all"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              <span>Edit & Resubmit</span>
+            </button>
           </div>
         )}
 
@@ -397,6 +459,111 @@ export const ApplicationDetailView: React.FC = () => {
                 className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm transition-all"
               >
                 Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revision Request Modal (Faculty Action) */}
+      {isRevisionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-float border border-brand-border p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+              <Edit className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="font-heading font-bold text-lg text-brand-primary">
+                Request Application Revision
+              </h3>
+              <p className="text-xs text-brand-muted leading-relaxed">
+                Provide instructions to <strong>{application.studentName}</strong> specifying what needs to be changed, corrected, or verified before re-evaluating.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-brand-primary">
+                Revision Notes & Required Updates
+              </label>
+              <textarea
+                value={revisionReason}
+                onChange={(e) => setRevisionReason(e.target.value)}
+                placeholder="e.g., Please specify your leave dates accurately and attach the medical certificate reference..."
+                rows={3}
+                className="w-full p-3 rounded-xl border border-brand-border text-xs text-brand-primary bg-brand-surface focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsRevisionModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-brand-border text-xs font-medium text-brand-muted hover:text-brand-primary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRevision}
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                Send Revision Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student Resubmit Modal */}
+      {isResubmitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-float border border-brand-border p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-brand-border/60 pb-3">
+              <div>
+                <h3 className="font-heading font-bold text-base text-brand-primary">
+                  Revise & Resubmit Application
+                </h3>
+                <p className="text-xs text-brand-muted">
+                  Update the letter content as instructed by your faculty reviewer.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsResubmitModalOpen(false)}
+                className="p-1 rounded-lg text-brand-muted hover:text-brand-primary"
+              >
+                ✕
+              </button>
+            </div>
+
+            {application.decisionNote && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                <span className="font-bold">Faculty Comment: </span>
+                <span>{application.decisionNote}</span>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto space-y-2">
+              <label className="text-xs font-semibold text-brand-primary">Application Letter Body</label>
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                rows={12}
+                className="w-full p-4 rounded-xl border border-brand-border text-xs font-mono text-brand-primary bg-brand-surface focus:outline-none focus:border-brand-accent leading-relaxed"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-brand-border/60">
+              <button
+                onClick={() => setIsResubmitModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-brand-border text-xs font-medium text-brand-muted hover:text-brand-primary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmResubmit}
+                disabled={!editedContent.trim()}
+                className="px-5 py-2 rounded-xl bg-brand-accent hover:bg-brand-accentHover disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                Resubmit to Faculty
               </button>
             </div>
           </div>

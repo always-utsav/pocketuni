@@ -29,7 +29,8 @@ import {
   Check,
   X,
   ArrowUpRight,
-  Play
+  Play,
+  Edit
 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { DocumentReviewModal } from './DocumentReviewModal';
@@ -93,6 +94,126 @@ export const SuperAdminDashboardView: React.FC = () => {
   const [crawlMaxPages, setCrawlMaxPages] = useState<number>(10);
   const [crawling, setCrawling] = useState(false);
   const [crawlMessage, setCrawlMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Super Admin Canonical Profile Editing State (Requirement 3)
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [studentForm, setStudentForm] = useState({
+    name: '',
+    branch: '',
+    semester: 5,
+    section: 'A',
+    bio: '',
+    topSkills: ''
+  });
+
+  const [editingFaculty, setEditingFaculty] = useState<any | null>(null);
+  const [facultyForm, setFacultyForm] = useState({
+    name: '',
+    designation: '',
+    department: '',
+    officeLocation: '',
+    officeHours: '',
+    phoneInternal: '',
+    bio: '',
+    researchAreas: ''
+  });
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveNotice, setProfileSaveNotice] = useState<string | null>(null);
+
+  const handleOpenEditStudent = (s: any) => {
+    setEditingStudent(s);
+    setStudentForm({
+      name: s.name || '',
+      branch: s.branch || '',
+      semester: s.year ? s.year * 2 - 1 : 5,
+      section: s.section || 'A',
+      bio: s.bio || '',
+      topSkills: Array.isArray(s.topSkills) ? s.topSkills.join(', ') : ''
+    });
+    setProfileSaveNotice(null);
+  };
+
+  const handleSaveStudent = async () => {
+    if (!editingStudent) return;
+    setIsSavingProfile(true);
+    setProfileSaveNotice(null);
+    try {
+      const skillsArray = studentForm.topSkills.split(',').map(x => x.trim()).filter(Boolean);
+      await apiClient.adminUpdateStudentProfile(editingStudent.studentId, {
+        name: studentForm.name,
+        branch: studentForm.branch,
+        semester: Number(studentForm.semester),
+        section: studentForm.section,
+        bio: studentForm.bio,
+        topSkills: skillsArray
+      });
+      setStudentsList(prev => prev.map(item => item.studentId === editingStudent.studentId ? {
+        ...item,
+        name: studentForm.name,
+        branch: studentForm.branch,
+        bio: studentForm.bio,
+        topSkills: skillsArray
+      } : item));
+      setProfileSaveNotice('Student canonical profile updated in PostgreSQL & broadcasted via WebSockets.');
+      setTimeout(() => setEditingStudent(null), 1200);
+    } catch (err: any) {
+      setProfileSaveNotice(`Failed to save: ${err.message || 'Server error'}`);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleOpenEditFaculty = (f: any) => {
+    setEditingFaculty(f);
+    setFacultyForm({
+      name: f.name || '',
+      designation: f.designation || '',
+      department: f.department || '',
+      officeLocation: f.officeLocation || '',
+      officeHours: f.officeHours || '',
+      phoneInternal: f.phoneInternal || '',
+      bio: f.bio || '',
+      researchAreas: Array.isArray(f.researchAreas) ? f.researchAreas.join(', ') : ''
+    });
+    setProfileSaveNotice(null);
+  };
+
+  const handleSaveFaculty = async () => {
+    if (!editingFaculty) return;
+    setIsSavingProfile(true);
+    setProfileSaveNotice(null);
+    try {
+      const areasArray = facultyForm.researchAreas.split(',').map(x => x.trim()).filter(Boolean);
+      await apiClient.adminUpdateFacultyProfile(editingFaculty.facultyId, {
+        name: facultyForm.name,
+        designation: facultyForm.designation,
+        department: facultyForm.department,
+        officeLocation: facultyForm.officeLocation,
+        officeHours: facultyForm.officeHours,
+        phoneInternal: facultyForm.phoneInternal,
+        bio: facultyForm.bio,
+        researchAreas: areasArray
+      });
+      setFacultyList(prev => prev.map(item => item.facultyId === editingFaculty.facultyId ? {
+        ...item,
+        name: facultyForm.name,
+        designation: facultyForm.designation,
+        department: facultyForm.department,
+        officeLocation: facultyForm.officeLocation,
+        officeHours: facultyForm.officeHours,
+        phoneInternal: facultyForm.phoneInternal,
+        bio: facultyForm.bio,
+        researchAreas: areasArray
+      } : item));
+      setProfileSaveNotice('Faculty canonical profile updated in PostgreSQL & broadcasted via WebSockets.');
+      setTimeout(() => setEditingFaculty(null), 1200);
+    } catch (err: any) {
+      setProfileSaveNotice(`Failed to save: ${err.message || 'Server error'}`);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     loadOverviewData();
@@ -995,12 +1116,17 @@ export const SuperAdminDashboardView: React.FC = () => {
           {/* SECTION 9: STUDENT RECORDS */}
           {activeTab === 'students' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="font-heading font-bold text-base text-ink-navy">Centre for AI Enrolled Students</h3>
-                <p className="text-xs text-slate-blue">Synthetic student records strictly tagged with is_demo = true.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-heading font-bold text-base text-ink-navy">Centre for AI Enrolled Students</h3>
+                  <p className="text-xs text-slate-blue">Canonical student records stored in PostgreSQL with real-time sync.</p>
+                </div>
+                <span className="text-[11px] text-slate-blue bg-stone-warm/50 px-3 py-1 rounded-full border border-stone-warm">
+                  Super Admin Direct Database Updates
+                </span>
               </div>
 
-              <div className="rounded-xl border border-stone-warm overflow-hidden shadow-subtle">
+              <div className="rounded-xl border border-stone-warm overflow-hidden shadow-subtle bg-white">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-paper text-slate-blue font-semibold text-[11px] border-b border-stone-warm">
                     <tr>
@@ -1010,6 +1136,7 @@ export const SuperAdminDashboardView: React.FC = () => {
                       <th className="px-4 py-2.5">Year</th>
                       <th className="px-4 py-2.5">Top Skills</th>
                       <th className="px-4 py-2.5">Hackathons</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-warm text-ink-navy">
@@ -1027,6 +1154,16 @@ export const SuperAdminDashboardView: React.FC = () => {
                             {s.openForHackathons ? 'Open' : 'Unavailable'}
                           </span>
                         </td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => handleOpenEditStudent(s)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sand/60 hover:bg-forest hover:text-white text-ink-navy font-semibold text-[11px] transition-colors border border-sand"
+                            title="Edit Student Profile"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1038,12 +1175,17 @@ export const SuperAdminDashboardView: React.FC = () => {
           {/* SECTION 10: FACULTY DIRECTORY */}
           {activeTab === 'faculty' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="font-heading font-bold text-base text-ink-navy">Official MITS Faculty Directory</h3>
-                <p className="text-xs text-slate-blue">Verified Centre for Artificial Intelligence faculty from web.mitsgwalior.in.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-heading font-bold text-base text-ink-navy">Official MITS Faculty Directory</h3>
+                  <p className="text-xs text-slate-blue">Verified faculty records from web.mitsgwalior.in with direct database management.</p>
+                </div>
+                <span className="text-[11px] text-slate-blue bg-stone-warm/50 px-3 py-1 rounded-full border border-stone-warm">
+                  Super Admin Direct Database Updates
+                </span>
               </div>
 
-              <div className="rounded-xl border border-stone-warm overflow-hidden shadow-subtle">
+              <div className="rounded-xl border border-stone-warm overflow-hidden shadow-subtle bg-white">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-paper text-slate-blue font-semibold text-[11px] border-b border-stone-warm">
                     <tr>
@@ -1052,6 +1194,7 @@ export const SuperAdminDashboardView: React.FC = () => {
                       <th className="px-4 py-2.5">Department</th>
                       <th className="px-4 py-2.5">Research Areas</th>
                       <th className="px-4 py-2.5">Mentor</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-warm text-ink-navy">
@@ -1067,6 +1210,16 @@ export const SuperAdminDashboardView: React.FC = () => {
                               Mentor
                             </span>
                           )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => handleOpenEditFaculty(f)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sand/60 hover:bg-forest hover:text-white text-ink-navy font-semibold text-[11px] transition-colors border border-sand"
+                            title="Edit Faculty Profile"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1661,6 +1814,266 @@ export const SuperAdminDashboardView: React.FC = () => {
             loadTabSpecificData(activeTab);
           }}
         />
+      )}
+
+      {/* Edit Student Modal (Requirement 3) */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-navy/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-float border border-stone-warm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-stone-warm pb-3">
+              <div>
+                <h3 className="font-heading font-bold text-base text-ink-navy">
+                  Edit Student Canonical Profile
+                </h3>
+                <p className="text-xs text-slate-blue">
+                  Roll No: <span className="font-mono font-semibold text-ink-navy">{editingStudent.rollNumber}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingStudent(null)}
+                className="p-1 rounded-lg text-slate-blue hover:text-ink-navy hover:bg-stone-warm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {profileSaveNotice && (
+              <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                profileSaveNotice.includes('Failed')
+                  ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+              }`}>
+                {profileSaveNotice.includes('Failed') ? <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+                <span>{profileSaveNotice}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={studentForm.name}
+                  onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Branch / Specialization</label>
+                <input
+                  type="text"
+                  value={studentForm.branch}
+                  onChange={(e) => setStudentForm({ ...studentForm, branch: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Semester</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={studentForm.semester}
+                    onChange={(e) => setStudentForm({ ...studentForm, semester: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Section</label>
+                  <input
+                    type="text"
+                    value={studentForm.section}
+                    onChange={(e) => setStudentForm({ ...studentForm, section: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Top Skills (comma-separated)</label>
+                <input
+                  type="text"
+                  value={studentForm.topSkills}
+                  onChange={(e) => setStudentForm({ ...studentForm, topSkills: e.target.value })}
+                  placeholder="Python, PyTorch, ROS, React"
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Bio / Profile Summary</label>
+                <textarea
+                  rows={3}
+                  value={studentForm.bio}
+                  onChange={(e) => setStudentForm({ ...studentForm, bio: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-warm">
+              <button
+                type="button"
+                onClick={() => setEditingStudent(null)}
+                className="px-4 py-2 rounded-xl border border-stone-warm text-xs text-slate-blue hover:text-ink-navy"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStudent}
+                disabled={isSavingProfile || !studentForm.name.trim()}
+                className="px-5 py-2 rounded-xl bg-forest hover:bg-forest-dark disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                {isSavingProfile ? 'Saving & Broadcasting...' : 'Save & Sync Student'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Faculty Modal (Requirement 3) */}
+      {editingFaculty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-navy/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-float border border-stone-warm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-stone-warm pb-3">
+              <div>
+                <h3 className="font-heading font-bold text-base text-ink-navy">
+                  Edit Faculty Canonical Record
+                </h3>
+                <p className="text-xs text-slate-blue">
+                  Email: <span className="font-mono text-ink-navy">{editingFaculty.emailPublic}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingFaculty(null)}
+                className="p-1 rounded-lg text-slate-blue hover:text-ink-navy hover:bg-stone-warm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {profileSaveNotice && (
+              <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                profileSaveNotice.includes('Failed')
+                  ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+              }`}>
+                {profileSaveNotice.includes('Failed') ? <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+                <span>{profileSaveNotice}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Faculty Name</label>
+                <input
+                  type="text"
+                  value={facultyForm.name}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Designation</label>
+                  <input
+                    type="text"
+                    value={facultyForm.designation}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={facultyForm.department}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, department: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Office Location</label>
+                  <input
+                    type="text"
+                    value={facultyForm.officeLocation}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, officeLocation: e.target.value })}
+                    placeholder="Academic Block B, Room 102"
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-ink-navy block mb-1">Internal Phone</label>
+                  <input
+                    type="text"
+                    value={facultyForm.phoneInternal}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, phoneInternal: e.target.value })}
+                    placeholder="0751-2409391"
+                    className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Office Consultation Hours</label>
+                <input
+                  type="text"
+                  value={facultyForm.officeHours}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, officeHours: e.target.value })}
+                  placeholder="Mon, Wed, Fri: 3:00 PM - 5:00 PM"
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Research Areas (comma-separated)</label>
+                <input
+                  type="text"
+                  value={facultyForm.researchAreas}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, researchAreas: e.target.value })}
+                  placeholder="Artificial Intelligence, Deep Learning, Edge Robotics"
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink-navy block mb-1">Academic Bio</label>
+                <textarea
+                  rows={3}
+                  value={facultyForm.bio}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, bio: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-stone-warm bg-paper text-ink-navy focus:outline-none focus:border-forest"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-warm">
+              <button
+                type="button"
+                onClick={() => setEditingFaculty(null)}
+                className="px-4 py-2 rounded-xl border border-stone-warm text-xs text-slate-blue hover:text-ink-navy"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveFaculty}
+                disabled={isSavingProfile || !facultyForm.name.trim()}
+                className="px-5 py-2 rounded-xl bg-forest hover:bg-forest-dark disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                {isSavingProfile ? 'Saving & Broadcasting...' : 'Save & Sync Faculty'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

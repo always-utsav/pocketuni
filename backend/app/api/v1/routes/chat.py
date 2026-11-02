@@ -230,12 +230,17 @@ def send_message(
 @router.get("/conversations/{conv_id}/stream")
 async def stream_message(
     conv_id: str,
-    query: str = Query(...),
+    query: Optional[str] = Query(None),
+    content: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Server-Sent Events (SSE) progressive streaming endpoint with grounding and conversation persistence."""
     from backend.app.services.intent_router import intent_router
+
+    text_input = (query or content or "").strip()
+    if not text_input:
+        raise HTTPException(status_code=400, detail="Query parameter 'query' or 'content' is required.")
 
     conv = db.query(Conversation).filter(
         Conversation.id == conv_id,
@@ -249,14 +254,14 @@ async def stream_message(
     user_msg = Message(
         conversation_id=conv.id,
         role="user",
-        content=query,
+        content=text_input,
         content_type="text"
     )
     db.add(user_msg)
     db.flush()
 
     # 2. Check for specialized intent (timetable, faculty availability, official links)
-    intent_res = intent_router.route_query(db, query, current_user)
+    intent_res = intent_router.route_query(db, text_input, current_user)
 
     async def event_generator():
         # Handle specialized deterministic institutional intent first
@@ -290,7 +295,7 @@ async def stream_message(
             return
 
         # 3. Retrieve sources from institutional knowledge base
-        sources = rag_service.search_knowledge(db, query, current_user, limit=4)
+        sources = rag_service.search_knowledge(db, text_input, current_user, limit=4)
         citations = [
             {
                 "title": s["title"],
@@ -311,7 +316,7 @@ async def stream_message(
             f"You are PocketUni, an AI institutional assistant for Madhav Institute of Technology & Science (MITS-DU), Gwalior.\n"
             f"Ground your answer strictly on the institutional context below. Do not speculate.\n\n"
             f"Institutional Context:\n{context_text}\n\n"
-            f"Question: {query}\nAnswer:"
+            f"Question: {text_input}\nAnswer:"
         )
 
         full_content = []

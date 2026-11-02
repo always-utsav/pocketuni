@@ -178,7 +178,7 @@ class ApiClient {
     });
   }
 
-  public async decideApplication(id: string, decision: 'approved' | 'rejected', note?: string) {
+  public async decideApplication(id: string, decision: 'approved' | 'rejected' | 'revision_requested', note?: string) {
     return this.request<any>(`/applications/${id}/decide`, {
       method: 'POST',
       body: JSON.stringify({ decision, note }),
@@ -634,6 +634,21 @@ class ApiClient {
 
   public async getWebsiteCrawlerStats() {
     return this.request<any>('/website/stats');
+  }
+
+  // Super Admin Canonical Profile Management (Requirement 3)
+  public async adminUpdateStudentProfile(studentId: string, updates: any) {
+    return this.request<any>(`/admin/students/${studentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  public async adminUpdateFacultyProfile(facultyId: string, updates: any) {
+    return this.request<any>(`/admin/faculty/${facultyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
   }
 }
 

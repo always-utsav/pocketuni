@@ -139,7 +139,7 @@ class GeminiService:
             try:
                 res = client.models.embed_content(
                     model=self.embedding_model,
-                    contents=text
+                    contents=[text]
                 )
                 if res and res.embeddings:
                     return res.embeddings[0].values

@@ -190,6 +190,95 @@ INSTITUTIONAL_LINK_REGISTRY: List[Dict[str, Any]] = [
         "department": "Centre for IoT",
         "source": "web.mitsgwalior.in",
         "verified": True
+    },
+    # Exact Extracted Documents and Portals from 'Centre for Artificial Intelligence data.docx'
+    {
+        "key": "it_air_course_structure",
+        "title": "B.Tech IT (Artificial Intelligence & Robotics) — Course Structure",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20itair.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["it air course structure", "air course structure", "ai robotics course structure", "it air syllabus", "robotics course structure", "it air curriculum"],
+        "description": "Official course structure and credit scheme for B.Tech Information Technology (Artificial Intelligence & Robotics).",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "aiml_course_structure",
+        "title": "B.Tech Artificial Intelligence & Machine Learning (AIML) — Course Structure",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20aiml.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["aiml course structure", "aiml syllabus", "aiml curriculum", "ai ml course structure", "artificial intelligence machine learning scheme"],
+        "description": "Official course scheme and semester subjects for B.Tech Artificial Intelligence and Machine Learning (AIML).",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "aids_course_structure",
+        "title": "B.Tech Artificial Intelligence & Data Science (AIDS) — Course Structure",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20aids.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["aids course structure", "aids syllabus", "data science course structure", "ai data science curriculum"],
+        "description": "Official curriculum and semester-wise structure for B.Tech Artificial Intelligence and Data Science (AIDS).",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "ai_course_structure",
+        "title": "B.Tech Artificial Intelligence (AI) — Course Structure",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20ai.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["ai course structure", "btech ai curriculum", "ai syllabus", "btech ai course structure"],
+        "description": "Official course structure and scheme for B.Tech Artificial Intelligence (AI).",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "hpc_lab_details",
+        "title": "High Performance Computing (HPC) Laboratory Details",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Laboratories/HPC%20labaratory%20details.pdf",
+        "category": "LABORATORY",
+        "keywords": ["hpc lab", "high performance computing lab", "hpc laboratory details", "nvidia server", "dgx station", "supercomputing lab"],
+        "description": "Official specifications, server configurations, NVIDIA DGX compute nodes, and software stack of the HPC Laboratory in the Centre for AI.",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "seventh_sem_syllabus",
+        "title": "7th Semester Detailed Syllabus — Centre for Artificial Intelligence",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Syllabus/July-Dec%202025/7sem_Syllabus_of-9-14.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["7th sem syllabus", "7th semester syllabus", "seventh semester syllabus", "cai 7th sem", "final year syllabus"],
+        "description": "Official 7th Semester detailed syllabus and examination scheme for Centre for Artificial Intelligence programmes.",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "rgpv_admitted_syllabus",
+        "title": "Syllabus for Students Admitted in Session 2023-24 (RGPV Scheme)",
+        "url": "https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Syllabus/2026JulySyllabus/VI%20Year%20Syllabus%20admitted%20in%20session%202023-24%20RGPV.pdf",
+        "category": "SYLLABUS",
+        "keywords": ["rgpv syllabus 2023", "2023 admitted syllabus", "rgpv scheme syllabus", "2023-24 syllabus"],
+        "description": "Official curriculum and syllabus scheme for students admitted during session 2023-24 under RGPV framework.",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
+    },
+    {
+        "key": "cai_timetables",
+        "title": "Centre for Artificial Intelligence — Departmental Timetables",
+        "url": "https://web.mitsgwalior.in/academics/departments/centre-of-artificial-intelligence",
+        "category": "ACADEMICS",
+        "keywords": ["cai timetable", "ai timetable", "air timetable", "aiml timetable", "class timetable cai"],
+        "description": "Official weekly class schedule and lecture timetable for all semesters in the Centre for Artificial Intelligence.",
+        "department": "Centre for Artificial Intelligence",
+        "source": "Centre for Artificial Intelligence data.docx",
+        "verified": True
     }
 ]
 

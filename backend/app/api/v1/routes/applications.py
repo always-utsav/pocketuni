@@ -83,7 +83,12 @@ def _serialize_app(app: Application) -> ApplicationOut:
     )
 
 
+class ResubmitApplicationRequest(BaseModel):
+    updatedContent: str
+
+
 @router.get("/", response_model=List[ApplicationOut])
+@router.get("/inbox", response_model=List[ApplicationOut])
 def list_applications(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -95,7 +100,7 @@ def list_applications(
     elif "FACULTY" in user_roles:
         apps = db.query(Application).filter(
             Application.faculty_id == current_user.id,
-            Application.status.in_(["sent", "approved", "rejected"]),
+            Application.status.in_(["sent", "approved", "rejected", "revision_requested"]),
             Application.is_deleted == False
         ).order_by(Application.created_at.desc()).all()
     else:
@@ -204,6 +209,56 @@ def update_application(
 
     db.commit()
     db.refresh(app)
+    return _serialize_app(app)
+
+
+@router.post("/{app_id}/resubmit", response_model=ApplicationOut)
+def resubmit_application(
+    app_id: str,
+    payload: ResubmitApplicationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    app = db.query(Application).filter(Application.id == app_id, Application.is_deleted == False).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    if app.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden to resubmit this application.")
+
+    app.content = payload.updatedContent
+    app.status = "sent"
+    app.current_version_no += 1
+    new_v = ApplicationVersionModel(
+        application_id=app.id,
+        version_no=app.current_version_no,
+        content=payload.updatedContent,
+        created_by_role="student",
+        is_demo=app.is_demo
+    )
+    db.add(new_v)
+
+    hist = ApplicationStatusHistory(
+        application_id=app.id,
+        from_status="revision_requested",
+        to_status="sent",
+        actor_user_id=current_user.id,
+        actor_name=current_user.full_name,
+        note="Application revised and resubmitted by student.",
+        is_demo=app.is_demo
+    )
+    db.add(hist)
+    db.commit()
+    db.refresh(app)
+
+    realtime_manager.broadcast_event(
+        event_type="application_status_changed",
+        data={
+            "applicationId": app.id,
+            "status": "sent",
+            "studentName": current_user.full_name,
+            "facultyId": app.faculty_id
+        }
+    )
     return _serialize_app(app)
 
 
@@ -369,6 +424,10 @@ def decide_application(
             "studentId": app.student_id
         },
         target_user_ids=[app.student_id]
+    )
+    realtime_manager.broadcast_event(
+        event_type="application_status_changed",
+        data={"applicationId": app.id, "status": decision_status}
     )
 
     return _serialize_app(app)

@@ -62,7 +62,8 @@ interface AppContextType {
   currentDraftApplication: Application | null;
   updateApplicationContent: (appId: string, newContent: string) => void;
   shareApplicationToProfessor: (appId: string, facultyId: string) => boolean;
-  decideApplication: (appId: string, decision: 'approved' | 'rejected', note?: string) => boolean;
+  decideApplication: (appId: string, decision: 'approved' | 'rejected' | 'revision_requested', note?: string) => boolean;
+  resubmitApplication: (appId: string, updatedContent: string) => boolean;
   deleteDraftApplication: (appId: string) => void;
   // Profile
   updateStudentProfile: (updates: Partial<StudentProfile>) => void;
@@ -232,19 +233,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).catch(() => {});
 
     // Subscribe to live WebSocket updates
-    const unsubApp = realtimeClient.subscribe('application_status_changed', (payload) => {
-      console.log('[Realtime] Application status changed:', payload);
+    const refreshApps = () => {
       apiClient.listApplications().then(fresh => {
         if (fresh && Array.isArray(fresh)) setApplications(fresh);
       }).catch(() => {});
+    };
+
+    const unsubAppStatus = realtimeClient.subscribe('application_status_changed', (payload) => {
+      console.log('[Realtime] Application status changed:', payload);
+      refreshApps();
+    });
+
+    const unsubAppReceived = realtimeClient.subscribe('application_received', (payload) => {
+      console.log('[Realtime] Application received:', payload);
+      refreshApps();
+    });
+
+    const unsubAppDecision = realtimeClient.subscribe('application_decision_made', (payload) => {
+      console.log('[Realtime] Application decision made:', payload);
+      refreshApps();
+    });
+
+    const unsubStudentProfile = realtimeClient.subscribe('student_profile_updated', (payload) => {
+      console.log('[Realtime] Student profile updated:', payload);
+      if (payload && (payload.userId === currentUser?.id || payload.studentId === currentStudentProfile?.studentId)) {
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          fullName: payload.fullName || prev.fullName,
+          branch: payload.branch || prev.branch,
+          pictureUrl: payload.pictureUrl || prev.pictureUrl
+        } : prev);
+        setCurrentStudentProfile(prev => prev ? {
+          ...prev,
+          bio: payload.bio || prev.bio,
+          updatedAt: new Date().toISOString()
+        } : prev);
+      }
     });
 
     const unsubFac = realtimeClient.subscribe('faculty_profile_updated', (payload) => {
       console.log('[Realtime] Faculty profile updated:', payload);
+      if (payload && payload.userId === currentUser?.id) {
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          fullName: payload.name || prev.fullName,
+          designation: payload.designation || prev.designation,
+          departmentName: payload.department || prev.departmentName
+        } : prev);
+      }
     });
 
     return () => {
-      unsubApp();
+      unsubAppStatus();
+      unsubAppReceived();
+      unsubAppDecision();
+      unsubStudentProfile();
       unsubFac();
     };
   }, [currentUser?.id]);
@@ -959,11 +1002,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  const decideApplication = (appId: string, decision: 'approved' | 'rejected', note?: string): boolean => {
+  const decideApplication = (appId: string, decision: 'approved' | 'rejected' | 'revision_requested', note?: string): boolean => {
     const targetApp = applications.find(a => a.id === appId);
     if (!targetApp) return false;
     if (targetApp.status === 'approved' || targetApp.status === 'rejected') {
-      return false; // Immutable once decided
+      return false; // Immutable once finalized
     }
 
     setApplications(prev => prev.map(a => {
@@ -972,7 +1015,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...a,
           status: decision,
           decidedAt: new Date().toISOString(),
-          decisionNote: note || (decision === 'approved' ? 'Approved as requested.' : 'Declined as per academic policy.'),
+          decisionNote: note || (
+            decision === 'approved'
+              ? 'Approved as requested.'
+              : decision === 'rejected'
+              ? 'Declined as per academic policy.'
+              : 'Corrections requested. Please update and resubmit.'
+          ),
           statusHistory: [
             ...a.statusHistory,
             {
@@ -995,17 +1044,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Create notification for student
+    const notifType = decision === 'approved' ? 'application_approved' : decision === 'rejected' ? 'application_rejected' : 'application_revision_requested';
+    const notifTitle = decision === 'approved' ? 'Application Approved' : decision === 'rejected' ? 'Application Rejected' : 'Revision Requested';
+
     const studentNotif: NotificationItem = {
       id: `notif-dec-${Date.now()}`,
       userId: targetApp.studentId,
-      type: decision === 'approved' ? 'application_approved' : 'application_rejected',
-      title: decision === 'approved' ? 'Application Approved' : 'Application Rejected',
-      body: `${currentUser?.fullName || 'Faculty'} has ${decision} your application: "${targetApp.title}".${note ? ` Note: "${note}"` : ''}`,
+      type: notifType,
+      title: notifTitle,
+      body: `${currentUser?.fullName || 'Faculty'} has ${decision.replace('_', ' ')} your application: "${targetApp.title}".${note ? ` Note: "${note}"` : ''}`,
       readAt: null,
       createdAt: new Date().toISOString(),
       applicationId: appId
     };
     setNotifications(prev => [studentNotif, ...prev]);
+
+    return true;
+  };
+
+  const resubmitApplication = (appId: string, updatedContent: string): boolean => {
+    const targetApp = applications.find(a => a.id === appId);
+    if (!targetApp) return false;
+
+    const newVersion = {
+      id: `v-${Date.now()}`,
+      versionNo: targetApp.versions.length + 1,
+      content: updatedContent,
+      createdBy: 'student' as const,
+      createdAt: new Date().toISOString()
+    };
+
+    setApplications(prev => prev.map(a => {
+      if (a.id === appId) {
+        return {
+          ...a,
+          content: updatedContent,
+          status: 'sent',
+          versions: [...a.versions, newVersion],
+          sentAt: new Date().toISOString(),
+          statusHistory: [
+            ...a.statusHistory,
+            {
+              id: `sh-${Date.now()}`,
+              fromStatus: 'revision_requested',
+              toStatus: 'sent',
+              actorUserId: currentUser?.id || 'usr-student',
+              actorName: currentUser?.fullName || 'Student',
+              note: 'Resubmitted with requested revisions',
+              createdAt: new Date().toISOString()
+            }
+          ]
+        };
+      }
+      return a;
+    }));
+
+    // Share to backend
+    if (targetApp.facultyId) {
+      apiClient.shareApplication(appId, targetApp.facultyId, 'Resubmitted with requested revisions').catch(() => {});
+    }
 
     return true;
   };
@@ -1087,6 +1184,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateApplicationContent,
         shareApplicationToProfessor,
         decideApplication,
+        resubmitApplication,
         deleteDraftApplication,
         updateStudentProfile,
         profileSaveIndicator,

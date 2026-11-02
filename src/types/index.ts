@@ -235,7 +235,7 @@ export type ApplicationType =
   | 'fee'
   | 'general';
 
-export type ApplicationStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+export type ApplicationStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'revision_requested';
 
 export interface ApplicationVersion {
   id: string;
@@ -283,7 +283,7 @@ export interface Application {
 export interface NotificationItem {
   id: string;
   userId: string;
-  type: 'application_received' | 'application_approved' | 'application_rejected' | 'system';
+  type: 'application_received' | 'application_approved' | 'application_rejected' | 'application_revision_requested' | 'system';
   title: string;
   body: string;
   readAt?: string | null;

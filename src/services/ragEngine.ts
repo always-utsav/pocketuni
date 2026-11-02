@@ -76,6 +76,25 @@ export function classifyIntent(query: string): 'college_info' | 'student_discove
 export function executeRAGQuery(query: string): RAGResponse {
   const q = query.toLowerCase().trim();
 
+  // Check conversational greetings
+  const greetingWords = ['hi', 'hello', 'hey', 'namaste', 'hola', 'greetings', 'good morning', 'good afternoon', 'good evening', 'who are you', 'what can you do', 'help'];
+  const firstWord = q.split(/\s+/)[0].replace(/[^a-z]/g, '');
+  if (greetingWords.includes(q.replace(/[^a-z\s]/g, '').trim()) || (greetingWords.includes(firstWord) && q.split(/\s+/).length <= 4)) {
+    return {
+      answer: `Hello! I am PocketUni Assistant, your official AI guide for Madhav Institute of Technology & Science (MITS-DU), Gwalior.\n\nI can help you with:\n• **Department & Faculty Directory**: Inquire about professors, office consultation hours, and research expertise.\n• **Academic Timetables & Schedules**: Class timings for B.Tech AI & Robotics, AIML, AIDS, and other branches.\n• **Course Structures & Syllabi**: Access official syllabus and curriculum PDFs directly from the Centre for Artificial Intelligence.\n• **Applications & Requests**: Draft and submit formal leave, bonafide, and project requests to faculty reviewers.\n• **Peer Student Discovery**: Connect with fellow students for hackathons, coding contests, and research projects.\n\nHow can I assist you with your campus academics today?`,
+      sources: [
+        {
+          title: 'MITS Gwalior Official Portal',
+          category: 'Administration',
+          url: 'https://web.mitsgwalior.in',
+          snippet: 'Madhav Institute of Technology & Science (MITS-DU), Gwalior. AI Campus Assistant Service.',
+          rank: 1,
+          score: 1.0
+        }
+      ]
+    };
+  }
+
   // Check out of scope
   if (classifyIntent(q) === 'out_of_scope') {
     return {

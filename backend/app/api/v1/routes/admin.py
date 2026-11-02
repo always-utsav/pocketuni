@@ -1,19 +1,27 @@
 import os
 import shutil
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends
+import logging
+from datetime import datetime, timezone
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.core.database import get_db, is_sqlite
 from backend.app.core.permissions import require_super_admin, get_current_user
+
+logger = logging.getLogger("pocketuni.admin")
 from backend.app.models.identity import User
-from backend.app.models.student import StudentProfile
-from backend.app.models.faculty import FacultyProfile
+from backend.app.models.student import StudentProfile, StudentSkill
+from backend.app.models.faculty import FacultyProfile, FacultyResearchInterest
 from backend.app.models.application import Application
 from backend.app.models.document import InstitutionalDocument
 from backend.app.models.academic import Department, Programme
 from backend.app.models.admin import AuditLog
 from backend.app.schemas.admin import AdminStatsOut, SystemHealthOut
+from backend.app.services.realtime_service import realtime_manager
+from backend.app.services.excel_service import excel_service
+from backend.app.services.audit_service import log_audit_event
 
 router = APIRouter()
 
@@ -323,4 +331,258 @@ def test_rag_retrieval(
         "query": query,
         "resultsCount": len(results),
         "results": results
+    }
+
+
+class AdminStudentProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    branch: Optional[str] = None
+    semester: Optional[int] = None
+    section: Optional[str] = None
+    programme: Optional[str] = None
+    academicYear: Optional[str] = None
+    bio: Optional[str] = None
+    pictureUrl: Optional[str] = None
+    topSkills: Optional[List[str]] = None
+
+
+class AdminFacultyProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    centre: Optional[str] = None
+    qualification: Optional[str] = None
+    officeLocation: Optional[str] = None
+    officeHours: Optional[str] = None
+    phoneInternal: Optional[str] = None
+    phonePublic: Optional[str] = None
+    bio: Optional[str] = None
+    photoUrl: Optional[str] = None
+    researchAreas: Optional[List[str]] = None
+    areasOfExpertise: Optional[List[str]] = None
+    professionalHighlights: Optional[List[Dict[str, Any]]] = None
+
+
+@router.put("/students/{student_id}")
+def admin_update_student_profile(
+    student_id: str,
+    payload: AdminStudentProfileUpdate,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Super Admin endpoint to directly update canonical student profile and user records.
+    Persists to PostgreSQL, syncs Excel mirror, logs audit event, and broadcasts live WebSocket event.
+    """
+    profile = db.query(StudentProfile).filter(
+        (StudentProfile.id == student_id) | (StudentProfile.user_id == student_id)
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Student profile not found.")
+
+    user = db.query(User).filter(User.id == profile.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Student user record not found.")
+
+    # 1. Update User record
+    if payload.name is not None:
+        user.full_name = payload.name.strip()
+    if payload.branch is not None:
+        user.branch = payload.branch.strip()
+    if payload.pictureUrl is not None:
+        user.picture_url = payload.pictureUrl
+
+    # 2. Update StudentProfile record
+    if payload.semester is not None:
+        profile.semester = payload.semester
+    if payload.section is not None:
+        profile.section = payload.section.strip().upper()
+    if payload.programme is not None:
+        profile.programme = payload.programme.strip()
+    if payload.academicYear is not None:
+        profile.academic_year = payload.academicYear.strip()
+    if payload.bio is not None:
+        profile.bio = payload.bio.strip()
+
+    # 3. Update skills if provided
+    if payload.topSkills is not None:
+        db.query(StudentSkill).filter(StudentSkill.student_profile_id == profile.id).delete()
+        for sk_name in payload.topSkills:
+            if sk_name.strip():
+                db.add(StudentSkill(
+                    student_profile_id=profile.id,
+                    name=sk_name.strip(),
+                    proficiency="Advanced",
+                    category="Technical"
+                ))
+
+    db.commit()
+    db.refresh(profile)
+    db.refresh(user)
+
+    # 4. Sync Excel mirror
+    try:
+        excel_service.sync_user_profile(db, user.id)
+    except Exception as e:
+        logger.warning(f"Excel sync notice: {e}")
+
+    # 5. Log audit event
+    log_audit_event(
+        db=db,
+        actor_email=current_user.email,
+        actor_role="SUPER_ADMIN",
+        action="ADMIN_UPDATE_STUDENT_PROFILE",
+        target_entity="StudentProfile",
+        target_id=profile.id,
+        change_summary=f"Super Admin updated student profile for {user.email} ({user.full_name})",
+        actor_user_id=current_user.id
+    )
+
+    # 6. Broadcast real-time WebSocket event
+    realtime_manager.broadcast_event(
+        event_type="student_profile_updated",
+        data={
+            "studentId": profile.id,
+            "userId": user.id,
+            "fullName": user.full_name,
+            "branch": user.branch,
+            "semester": profile.semester,
+            "section": profile.section,
+            "bio": profile.bio,
+            "pictureUrl": user.picture_url,
+            "updatedAt": datetime.now(timezone.utc).isoformat()
+        }
+    )
+
+    return {
+        "message": "Student profile updated successfully.",
+        "student": {
+            "id": profile.id,
+            "userId": user.id,
+            "fullName": user.full_name,
+            "branch": user.branch,
+            "semester": profile.semester,
+            "section": profile.section,
+            "bio": profile.bio,
+            "pictureUrl": user.picture_url
+        }
+    }
+
+
+@router.put("/faculty/{faculty_id}")
+def admin_update_faculty_profile(
+    faculty_id: str,
+    payload: AdminFacultyProfileUpdate,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Super Admin endpoint to directly update canonical faculty profile and user records.
+    Persists to PostgreSQL, syncs Excel mirror, logs audit event, and broadcasts live WebSocket event.
+    """
+    profile = db.query(FacultyProfile).filter(
+        (FacultyProfile.id == faculty_id) | (FacultyProfile.user_id == faculty_id)
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Faculty profile not found.")
+
+    user = db.query(User).filter(User.id == profile.user_id).first() if profile.user_id else None
+
+    # 1. Update FacultyProfile fields
+    if payload.name is not None:
+        profile.name = payload.name.strip()
+        if user:
+            user.full_name = payload.name.strip()
+    if payload.designation is not None:
+        profile.designation = payload.designation.strip()
+        if user:
+            user.designation = payload.designation.strip()
+    if payload.department is not None:
+        profile.department = payload.department.strip()
+        if user:
+            user.department_name = payload.department.strip()
+    if payload.centre is not None:
+        profile.centre = payload.centre.strip()
+    if payload.qualification is not None:
+        profile.qualification = payload.qualification.strip()
+    if payload.officeLocation is not None:
+        profile.office_location = payload.officeLocation.strip()
+    if payload.officeHours is not None:
+        profile.office_hours = payload.officeHours.strip()
+    if payload.phoneInternal is not None:
+        profile.phone_internal = payload.phoneInternal.strip()
+    if payload.phonePublic is not None:
+        profile.phone_public = payload.phonePublic.strip()
+    if payload.bio is not None:
+        profile.bio = payload.bio.strip()
+    if payload.photoUrl is not None:
+        profile.photo_url = payload.photoUrl.strip()
+        if user:
+            user.picture_url = payload.photoUrl.strip()
+    if payload.areasOfExpertise is not None:
+        profile.areas_of_expertise = payload.areasOfExpertise
+    if payload.professionalHighlights is not None:
+        profile.professional_highlights_json = payload.professionalHighlights
+
+    # 2. Update research interests if provided
+    if payload.researchAreas is not None:
+        db.query(FacultyResearchInterest).filter(FacultyResearchInterest.faculty_profile_id == profile.id).delete()
+        for area in payload.researchAreas:
+            if area.strip():
+                db.add(FacultyResearchInterest(
+                    faculty_profile_id=profile.id,
+                    area=area.strip(),
+                    is_demo=profile.is_demo
+                ))
+
+    db.commit()
+    db.refresh(profile)
+    if user:
+        db.refresh(user)
+
+    # 3. Sync Excel mirror
+    if user:
+        try:
+            excel_service.sync_user_profile(db, user.id)
+        except Exception as e:
+            logger.warning(f"Excel sync notice: {e}")
+
+    # 4. Log audit event
+    log_audit_event(
+        db=db,
+        actor_email=current_user.email,
+        actor_role="SUPER_ADMIN",
+        action="ADMIN_UPDATE_FACULTY_PROFILE",
+        target_entity="FacultyProfile",
+        target_id=profile.id,
+        change_summary=f"Super Admin updated faculty profile for {profile.email_public} ({profile.name})",
+        actor_user_id=current_user.id
+    )
+
+    # 5. Broadcast real-time WebSocket event
+    realtime_manager.broadcast_event(
+        event_type="faculty_profile_updated",
+        data={
+            "facultyId": profile.id,
+            "userId": user.id if user else None,
+            "name": profile.name,
+            "designation": profile.designation,
+            "department": profile.department,
+            "qualification": profile.qualification,
+            "officeLocation": profile.office_location,
+            "updatedAt": datetime.now(timezone.utc).isoformat()
+        }
+    )
+
+    return {
+        "message": "Faculty profile updated successfully.",
+        "faculty": {
+            "id": profile.id,
+            "name": profile.name,
+            "designation": profile.designation,
+            "department": profile.department,
+            "qualification": profile.qualification,
+            "officeLocation": profile.office_location,
+            "photoUrl": profile.photo_url
+        }
     }

@@ -147,5 +147,58 @@ export const MITS_KNOWLEDGE_BASE: KnowledgeChunk[] = [
 - Book Bank Scheme: SC/ST and economically disadvantaged students receive free textbooks for full semester duration. Standard issue limit: 4 books for 15 days for UG students.`,
     keywords: ['library', 'books', 'book bank', 'ieee xplore', 'timings', 'reading room', 'fine', 'digital library'],
     lastModified: '2026-09-12'
+  },
+  {
+    id: 'kb-11',
+    url: 'https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Laboratories/HPC%20labaratory%20details.pdf',
+    title: 'High Performance Computing (HPC) Laboratory Details',
+    category: 'Facilities',
+    headingPath: 'Departments > Centre for Artificial Intelligence > Laboratories > HPC Lab',
+    content: `The High Performance Computing (HPC) Laboratory in the Centre for Artificial Intelligence at MITS Gwalior is equipped with high-throughput computing hardware for deep learning and AI research:
+- Infrastructure: Multi-GPU compute nodes, NVIDIA DGX workstations, high-speed storage fabric, and high-performance tensor computing clusters.
+- Research focus: Large Language Model fine-tuning, computer vision architectures, distributed neural network acceleration, and real-time robotics simulations.
+- Access: Available to B.Tech (AIR, AIML, AIDS) and postgraduate researchers under faculty project supervision.
+Official document link: https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Laboratories/HPC%20labaratory%20details.pdf`,
+    keywords: ['hpc', 'hpc lab', 'high performance computing', 'supercomputing', 'nvidia gpu', 'gpu cluster', 'lab details', 'dgx'],
+    lastModified: '2026-10-15'
+  },
+  {
+    id: 'kb-12',
+    url: 'https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20itair.pdf',
+    title: 'B.Tech IT (Artificial Intelligence & Robotics) — Course Structure & Scheme',
+    category: 'Academics',
+    headingPath: 'Departments > Centre for Artificial Intelligence > Course Structures > IT AIR',
+    content: `Official Course Structure and credit curriculum for B.Tech Information Technology (Artificial Intelligence & Robotics):
+- Department: Centre for Artificial Intelligence
+- Core subjects: Autonomous Systems, Robot Kinematics, Deep Learning, Edge Computing, Computer Vision, ROS Programming, and Embedded Microcontrollers.
+- Complete PDF scheme: https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20itair.pdf`,
+    keywords: ['it air', 'air course structure', 'ai and robotics', 'robotics syllabus', 'robotics course structure', 'scheme air'],
+    lastModified: '2026-10-15'
+  },
+  {
+    id: 'kb-13',
+    url: 'https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20aiml.pdf',
+    title: 'B.Tech Artificial Intelligence & Machine Learning (AIML) — Course Structure',
+    category: 'Academics',
+    headingPath: 'Departments > Centre for Artificial Intelligence > Course Structures > AIML',
+    content: `Official Course Structure and credit curriculum for B.Tech Artificial Intelligence and Machine Learning (AIML):
+- Department: Centre for Artificial Intelligence
+- Core subjects: Machine Learning Algorithms, Statistical Pattern Recognition, Neural Networks, Natural Language Processing, and Cloud AI Computing.
+- Complete PDF scheme: https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/course%20structures/COURSE%20STRUCTURE%20aiml.pdf`,
+    keywords: ['aiml course structure', 'aiml syllabus', 'ai ml scheme', 'aiml curriculum', 'artificial intelligence and machine learning'],
+    lastModified: '2026-10-15'
+  },
+  {
+    id: 'kb-14',
+    url: 'https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Syllabus/July-Dec%202025/7sem_Syllabus_of-9-14.pdf',
+    title: '7th Semester Detailed Syllabus — Centre for Artificial Intelligence',
+    category: 'Academics',
+    headingPath: 'Departments > Centre for Artificial Intelligence > Syllabus > 7th Semester',
+    content: `Official 7th Semester detailed syllabus and examination regulations for the Centre for Artificial Intelligence:
+- Session: July-Dec 2025 / 2026
+- Modules: Advanced Electives, Major Project Phase-I, Industrial Internship Evaluation, and Specialized AI Seminars.
+- Complete PDF syllabus: https://web.mitsgwalior.in/images/Departments/Centre%20of%20Artificial%20Intelligence/Syllabus/July-Dec%202025/7sem_Syllabus_of-9-14.pdf`,
+    keywords: ['7th sem syllabus', '7th semester syllabus', 'seventh sem syllabus', 'cai syllabus 7th', 'final year syllabus'],
+    lastModified: '2026-10-15'
   }
 ];

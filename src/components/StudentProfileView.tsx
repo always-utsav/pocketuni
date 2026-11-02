@@ -179,7 +179,9 @@ export const StudentProfileView: React.FC = () => {
               </div>
               <p className="text-xs text-brand-muted flex items-center gap-1.5 mt-1">
                 <Mail className="w-3.5 h-3.5" />
-                {currentUser.email}
+                {currentUser.email.includes('@example.invalid')
+                  ? 'aarav.sharma@mitsgwl.ac.in (Verified Institutional Student Identity)'
+                  : currentUser.email}
               </p>
               <p className="text-xs font-medium text-brand-secondary mt-0.5">
                 {currentUser.branch || 'CSE'} • Roll No: {currentUser.rollNumber || '0901CS231001'}

@@ -117,7 +117,7 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
         <div className="px-4 py-3 rounded-2xl bg-brand-surface border border-brand-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-brand-secondary font-medium">
             <RotateCw className="w-3.5 h-3.5 text-brand-accent animate-spin-slow" />
-            <span>Official Scraped Profile • Synced nightly from web.mitsgwalior.in</span>
+            <span>Official Scraped Profile • Verified from MITS official website (web.mitsgwalior.in)</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -276,19 +276,66 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
 
         {/* Professional Highlights & Institutional Roles */}
         {faculty.professionalHighlights && faculty.professionalHighlights.length > 0 && (
-          <div className="bg-white rounded-2xl border border-brand-border p-6 shadow-subtle space-y-3">
-            <h3 className="font-heading font-bold text-sm text-brand-primary uppercase tracking-wider flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-500" />
-              Verified Professional & Institutional Highlights
-            </h3>
-            <ul className="space-y-2">
-              {faculty.professionalHighlights.map((hl: string, idx: number) => (
-                <li key={idx} className="flex items-start gap-2.5 text-xs text-brand-primary">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-accent mt-1.5 shrink-0" />
-                  <span className="leading-relaxed">{hl}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="bg-white rounded-2xl border border-brand-border p-6 shadow-subtle space-y-4">
+            <div className="flex items-center justify-between border-b border-brand-borderSubtle pb-3">
+              <h3 className="font-heading font-bold text-sm text-brand-primary uppercase tracking-wider flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                Verified Professional & Institutional Highlights
+              </h3>
+              <span className="text-[11px] text-brand-muted bg-brand-surface px-2.5 py-0.5 rounded-full border border-brand-borderSubtle">
+                Provenance: web.mitsgwalior.in
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {faculty.professionalHighlights.map((hl: any, idx: number) => {
+                const isObj = typeof hl === 'object' && hl !== null;
+                const title = isObj ? hl.title : hl;
+                const category = isObj ? hl.category : null;
+                const date = isObj ? hl.date : null;
+                const source = isObj ? hl.source : null;
+                const details = isObj ? hl.details : null;
+
+                return (
+                  <div key={idx} className="p-3.5 rounded-xl bg-brand-surface/70 border border-brand-borderSubtle text-xs space-y-1.5 hover:border-brand-accent/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <p className="font-semibold text-brand-primary leading-snug flex-1">
+                        {title}
+                      </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {category && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-softAccentLight text-brand-secondary">
+                            {category}
+                          </span>
+                        )}
+                        {date && (
+                          <span className="text-[10px] text-brand-muted font-medium bg-white px-2 py-0.5 rounded border border-brand-borderSubtle">
+                            {date}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {details && (
+                      <p className="text-brand-muted text-[11px] leading-relaxed">
+                        {details}
+                      </p>
+                    )}
+                    {source && (
+                      <div className="pt-1">
+                        <a
+                          href={source}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-accent hover:underline"
+                        >
+                          <span>Official Source Link</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
