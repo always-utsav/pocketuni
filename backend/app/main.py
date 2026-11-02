@@ -19,6 +19,7 @@ from backend.app.api.v1.routes import (
     chat,
     roster,
     website,
+    ws,
 )
 import logging
 
@@ -80,3 +81,5 @@ app.include_router(communication.router, prefix=f"{api_prefix}/communication", t
 app.include_router(chat.router, prefix=f"{api_prefix}/chat", tags=["AI Chat & Conversations"])
 app.include_router(roster.router, prefix=f"{api_prefix}/admin/roster", tags=["Master Roster Management"])
 app.include_router(website.router, prefix=f"{api_prefix}/website", tags=["Website Ingestion & Portals"])
+app.include_router(ws.router, prefix=f"{api_prefix}", tags=["Realtime WebSocket"])
+app.include_router(ws.router, tags=["Realtime WebSocket Direct"])

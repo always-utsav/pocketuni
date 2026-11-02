@@ -11,6 +11,7 @@ class Token(BaseModel):
     full_name: str
     picture_url: Optional[str] = None
     active_context: Optional[str] = None
+    user: Optional[dict] = None
 
 
 class TokenPayload(BaseModel):

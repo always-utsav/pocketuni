@@ -7,59 +7,90 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Refined PocketUni Academic Design Direction
+        // Authoritative PocketUni Institutional Palette
+        midnight: {
+          DEFAULT: '#14252B',
+          dark: '#0E1B20',
+          light: '#1B3139',
+        },
+        forest: {
+          DEFAULT: '#176B68',
+          dark: '#115250',
+          light: '#208581',
+        },
+        porcelain: {
+          DEFAULT: '#F5F3EE',
+          card: '#FFFFFF',
+          subtle: '#ECE9E1',
+        },
+        sand: {
+          DEFAULT: '#E7DFD2',
+          border: '#D9CFBF',
+          dark: '#C8BEAD',
+        },
+        copper: {
+          DEFAULT: '#B96D47',
+          hover: '#9C5A37',
+          light: '#F8EFEA',
+        },
+        sage: {
+          DEFAULT: '#8A9B87',
+          light: '#A5B5A2',
+          bg: '#EEF2ED',
+          border: '#D2DDD0',
+        },
+        charcoal: {
+          DEFAULT: '#273238',
+          light: '#3C4950',
+          subtle: '#52626B',
+        },
+        // Backward-compatible color mapping for existing views
         ink: {
-          DEFAULT: '#202C39',
-          navy: '#202C39',
-          dark: '#17202A',
-          light: '#2D3D4E',
+          DEFAULT: '#14252B',
+          navy: '#14252B',
+          dark: '#0E1B20',
+          light: '#273238',
         },
         slate: {
-          DEFAULT: '#536B7A',
-          blue: '#536B7A',
-          light: '#6E8A9C',
-          subtle: '#E2E8EC',
+          DEFAULT: '#176B68',
+          blue: '#176B68',
+          light: '#208581',
+          subtle: '#E7DFD2',
         },
         terracotta: {
-          DEFAULT: '#B56F4A',
-          muted: '#B56F4A',
-          hover: '#9E5F3D',
+          DEFAULT: '#B96D47',
+          muted: '#B96D47',
+          hover: '#9C5A37',
           light: '#F8EFEA',
         },
         stone: {
-          DEFAULT: '#E8E2D8',
-          warm: '#E8E2D8',
-          border: '#D9D1C5',
-          dark: '#BDB3A4',
+          DEFAULT: '#E7DFD2',
+          warm: '#E7DFD2',
+          border: '#D9CFBF',
+          dark: '#C8BEAD',
         },
         paper: {
-          DEFAULT: '#F7F6F2',
+          DEFAULT: '#F5F3EE',
           card: '#FFFFFF',
-          subtle: '#F1EFEA',
+          subtle: '#ECE9E1',
         },
-        sage: {
-          DEFAULT: '#668477',
-          light: '#8FAAA0',
-          bg: '#EAF0ED',
-          border: '#D2DFD9',
-        },
-        // Mapped brand tokens preserving layout while applying the refined visual direction
+        // Mapped brand tokens
         brand: {
-          primary: '#202C39',       // Ink navy
-          primaryLight: '#2D3D4E',
-          secondary: '#536B7A',     // Slate blue
-          secondaryLight: '#6E8A9C',
-          accent: '#B56F4A',        // Muted terracotta accent
-          accentHover: '#9E5F3D',
-          softAccent: '#668477',    // Sage accent
-          softAccentLight: '#EAF0ED',
-          softAccentDark: '#4F685D',
-          surface: '#F7F6F2',       // Paper background
+          primary: '#14252B',       // Deep Midnight
+          primaryLight: '#273238',  // Charcoal
+          secondary: '#176B68',     // Forest Teal
+          secondaryLight: '#208581',
+          accent: '#B96D47',        // Burnt Copper
+          accentHover: '#9C5A37',
+          softAccent: '#8A9B87',    // Soft Sage
+          softAccentLight: '#EEF2ED',
+          softAccentDark: '#6D7E6B',
+          surface: '#F5F3EE',       // Porcelain
           card: '#FFFFFF',
-          border: '#E8E2D8',        // Warm stone border
-          borderSubtle: '#F1EFEA',
-          muted: '#536B7A',         // Slate blue muted text
-          darkMuted: '#8E9EAA',
+          border: '#E7DFD2',        // Warm Sand
+          borderSubtle: '#ECE9E1',
+          muted: '#273238',         // Charcoal
+          darkMuted: '#52626B',
         }
       },
       fontFamily: {

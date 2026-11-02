@@ -358,6 +358,10 @@ def get_document_for_review(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     user_roles = [ur.role.name for ur in current_user.roles if ur.role]
+    if doc.is_deleted or doc.status == "RESTRICTED_CONFIDENTIAL" or doc.category == "INTERNAL_MARKS":
+        if "SUPER_ADMIN" not in user_roles:
+            raise HTTPException(status_code=403, detail="Forbidden: Restricted confidential academic record.")
+
     if "SUPER_ADMIN" not in user_roles and not audience_service.can_user_access_document(current_user, doc):
         raise HTTPException(status_code=403, detail="Document audience restricted.")
 
@@ -626,6 +630,10 @@ def download_document(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     user_roles = [ur.role.name for ur in current_user.roles if ur.role]
+    if doc.is_deleted or doc.status == "RESTRICTED_CONFIDENTIAL" or doc.category == "INTERNAL_MARKS":
+        if "SUPER_ADMIN" not in user_roles:
+            raise HTTPException(status_code=403, detail="Forbidden: Restricted confidential academic record.")
+
     if "SUPER_ADMIN" not in user_roles and not audience_service.can_user_access_document(current_user, doc):
         raise HTTPException(status_code=403, detail="Forbidden: You are not authorized to download this file.")
 

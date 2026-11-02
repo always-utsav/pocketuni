@@ -19,6 +19,9 @@ class ConversationCreate(BaseModel):
     title: Optional[str] = "New Conversation"
     kind: Optional[str] = "general"
 
+class ConversationUpdate(BaseModel):
+    title: str
+
 class MessageCreate(BaseModel):
     content: str
 
@@ -111,6 +114,26 @@ def get_conversation(
             for m in msgs
         ]
     }
+
+@router.patch("/conversations/{conv_id}")
+@router.patch("/conversations/{conv_id}/title")
+def update_conversation_title(
+    conv_id: str,
+    payload: ConversationUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    conv = db.query(Conversation).filter(
+        Conversation.id == conv_id,
+        Conversation.user_id == current_user.id,
+        Conversation.is_deleted == False
+    ).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    
+    conv.title = payload.title.strip()
+    db.commit()
+    return {"id": conv.id, "title": conv.title}
 
 @router.delete("/conversations/{conv_id}")
 def delete_conversation(
@@ -211,43 +234,104 @@ async def stream_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Server-Sent Events (SSE) streaming endpoint."""
+    """Server-Sent Events (SSE) progressive streaming endpoint with grounding and conversation persistence."""
+    from backend.app.services.intent_router import intent_router
+
     conv = db.query(Conversation).filter(
         Conversation.id == conv_id,
-        Conversation.user_id == current_user.id
+        Conversation.user_id == current_user.id,
+        Conversation.is_deleted == False
     ).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
-    # Retrieve sources
-    sources = rag_service.search_knowledge(db, query, current_user, limit=4)
-    citations = [
-        {
-            "title": s["title"],
-            "category": s["category"],
-            "page": s["page_number"],
-            "section": s["section"],
-            "score": s["score"],
-            "snippet": s["text"][:160] + "..."
-        }
-        for s in sources
-    ]
+    # 1. Record user message in DB
+    user_msg = Message(
+        conversation_id=conv.id,
+        role="user",
+        content=query,
+        content_type="text"
+    )
+    db.add(user_msg)
+    db.flush()
+
+    # 2. Check for specialized intent (timetable, faculty availability, official links)
+    intent_res = intent_router.route_query(db, query, current_user)
 
     async def event_generator():
-        # Yield metadata & citations first
+        # Handle specialized deterministic institutional intent first
+        if intent_res:
+            citations = intent_res.get("citations", [])
+            yield f"event: citations\ndata: {json.dumps(citations)}\n\n"
+            if intent_res.get("widget"):
+                yield f"event: widget\ndata: {json.dumps(intent_res['widget'])}\n\n"
+
+            # Stream the authoritative answer
+            full_text = intent_res["answer"]
+            # Chunk the response slightly for progressive typing illusion
+            words = full_text.split(" ")
+            for i in range(0, len(words), 3):
+                chunk = " ".join(words[i:i+3]) + (" " if i + 3 < len(words) else "")
+                yield f"event: delta\ndata: {json.dumps({'text': chunk})}\n\n"
+
+            # Persist assistant message
+            assistant_msg = Message(
+                conversation_id=conv.id,
+                role="assistant",
+                content=full_text,
+                content_type="text",
+                sources=citations
+            )
+            db.add(assistant_msg)
+            conv.last_message_at = datetime.now(timezone.utc)
+            db.commit()
+
+            yield f"event: done\ndata: {json.dumps({'status': 'completed', 'messageId': assistant_msg.id})}\n\n"
+            return
+
+        # 3. Retrieve sources from institutional knowledge base
+        sources = rag_service.search_knowledge(db, query, current_user, limit=4)
+        citations = [
+            {
+                "title": s["title"],
+                "category": s["category"],
+                "page": s["page_number"],
+                "section": s["section"],
+                "score": s["score"],
+                "snippet": s["text"][:160] + "..."
+            }
+            for s in sources
+        ]
+
         yield f"event: citations\ndata: {json.dumps(citations)}\n\n"
 
-        # Stream answer tokens from Gemini
         context_parts = [f"Source ({s['title']}, Page {s['page_number']}):\n{s['text']}" for s in sources]
         context_text = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
-        prompt = f"Evidence:\n{context_text}\n\nQuestion: {query}\nAnswer:"
+        prompt = (
+            f"You are PocketUni, an AI institutional assistant for Madhav Institute of Technology & Science (MITS-DU), Gwalior.\n"
+            f"Ground your answer strictly on the institutional context below. Do not speculate.\n\n"
+            f"Institutional Context:\n{context_text}\n\n"
+            f"Question: {query}\nAnswer:"
+        )
 
         full_content = []
         async for token in gemini_service.generate_stream(prompt):
             full_content.append(token)
             yield f"event: delta\ndata: {json.dumps({'text': token})}\n\n"
 
-        yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
+        complete_answer = "".join(full_content)
+        assistant_msg = Message(
+            conversation_id=conv.id,
+            role="assistant",
+            content=complete_answer,
+            content_type="text",
+            sources=citations
+        )
+        db.add(assistant_msg)
+        conv.last_message_at = datetime.now(timezone.utc)
+        db.commit()
+
+        yield f"event: done\ndata: {json.dumps({'status': 'completed', 'messageId': assistant_msg.id})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

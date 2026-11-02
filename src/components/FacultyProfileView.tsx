@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mail,
   Phone,
@@ -13,7 +13,9 @@ import {
   Check,
   Building,
   Lock,
-  Save
+  Save,
+  Star,
+  Globe
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { MITS_FACULTY } from '../data/facultyData';
@@ -25,14 +27,54 @@ interface FacultyProfileViewProps {
 }
 
 export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFaculty }) => {
-  const { currentUser, selectedFaculty, setSelectedFaculty } = useApp();
+  const { currentUser, selectedFaculty } = useApp();
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportText, setReportText] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [loadedFaculty, setLoadedFaculty] = useState<any>(null);
+
+  useEffect(() => {
+    if (customFaculty) {
+      setLoadedFaculty(customFaculty);
+      return;
+    }
+    if (selectedFaculty) {
+      setLoadedFaculty(selectedFaculty);
+      return;
+    }
+    if (currentUser?.role === 'faculty') {
+      apiClient.getFacultyProfileMe()
+        .then((data) => {
+          if (data) {
+            setLoadedFaculty({
+              facultyId: data.facultyId || currentUser.id,
+              name: data.name || currentUser.fullName,
+              designation: data.designation || currentUser.designation || 'Faculty Member',
+              department: data.department || currentUser.departmentName || 'Centre for Artificial Intelligence',
+              emailPublic: data.emailPublic || currentUser.email,
+              phonePublic: data.phonePublic || '',
+              phoneInternal: data.phoneInternal || '',
+              officeLocation: data.officeLocation || 'Academic Block',
+              officeHours: data.officeHours || 'Mon, Wed, Fri: 03:00 PM - 05:00 PM',
+              photoUrl: data.photoUrl || currentUser.pictureUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+              qualification: data.qualification || 'Ph.D.',
+              bio: data.bio || '',
+              researchAreas: data.areasOfExpertise || [],
+              professionalHighlights: data.professionalHighlights || [],
+              externalLinks: data.externalLinks || {},
+              publications: data.publications || [],
+              sourceUrl: data.sourceUrl || 'https://web.mitsgwalior.in',
+              lastSyncedAt: data.lastSyncedAt || new Date().toISOString()
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [customFaculty, selectedFaculty, currentUser?.id]);
 
   // Determine which faculty profile to render
-  const faculty = customFaculty || selectedFaculty || MITS_FACULTY.find(f => f.emailPublic.toLowerCase() === currentUser?.email.toLowerCase()) || MITS_FACULTY[0];
+  const faculty = loadedFaculty || customFaculty || selectedFaculty || MITS_FACULTY.find(f => f.emailPublic.toLowerCase() === currentUser?.email.toLowerCase()) || MITS_FACULTY[0];
 
   const handleReportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,7 +239,7 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
               Research Areas
             </h4>
             <div className="flex flex-wrap gap-1.5">
-              {faculty.researchAreas.map((area, idx) => (
+              {(faculty.researchAreas || []).map((area: string, idx: number) => (
                 <span
                   key={idx}
                   className="px-3 py-1 rounded-xl text-xs font-medium bg-brand-surface border border-brand-border text-brand-primary"
@@ -209,6 +251,48 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
           </div>
         </div>
 
+        {/* Professional Highlights & Institutional Roles */}
+        {faculty.professionalHighlights && faculty.professionalHighlights.length > 0 && (
+          <div className="bg-white rounded-2xl border border-brand-border p-6 shadow-subtle space-y-3">
+            <h3 className="font-heading font-bold text-sm text-brand-primary uppercase tracking-wider flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-500" />
+              Verified Professional & Institutional Highlights
+            </h3>
+            <ul className="space-y-2">
+              {faculty.professionalHighlights.map((hl: string, idx: number) => (
+                <li key={idx} className="flex items-start gap-2.5 text-xs text-brand-primary">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-accent mt-1.5 shrink-0" />
+                  <span className="leading-relaxed">{hl}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* External Scholarly Profiles (IRINS, Google Scholar, Vidwan) */}
+        {faculty.externalLinks && Object.keys(faculty.externalLinks).length > 0 && (
+          <div className="bg-white rounded-2xl border border-brand-border p-5 shadow-subtle space-y-3">
+            <h3 className="font-heading font-bold text-xs uppercase tracking-wider text-brand-muted flex items-center gap-2">
+              <Globe className="w-4 h-4 text-brand-secondary" />
+              Official Scholarly Profiles & Research Repositories
+            </h3>
+            <div className="flex flex-wrap gap-2.5">
+              {Object.entries(faculty.externalLinks).map(([k, url]: [string, any]) => (
+                <a
+                  key={k}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-surface border border-brand-border hover:border-brand-accent text-brand-primary hover:text-brand-accent transition-all flex items-center gap-1.5"
+                >
+                  <span className="capitalize">{k.replace('_', ' ')}</span>
+                  <ExternalLink className="w-3 h-3 text-brand-muted" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Selected Publications (PRD Section 16.2 & FR-5.2) */}
         <div className="bg-white rounded-2xl border border-brand-border p-6 shadow-subtle space-y-4">
           <h3 className="font-heading font-bold text-sm text-brand-primary uppercase tracking-wider flex items-center gap-2">
@@ -217,7 +301,7 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
           </h3>
 
           <div className="space-y-3">
-            {faculty.publications.map((pub, idx) => (
+            {(faculty.publications || []).map((pub: any, idx: number) => (
               <div key={idx} className="p-3.5 rounded-xl bg-brand-surface border border-brand-borderSubtle text-xs space-y-1">
                 <p className="font-semibold text-brand-primary leading-snug">{pub.title}</p>
                 <p className="text-brand-muted text-[11px]">

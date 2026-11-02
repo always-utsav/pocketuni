@@ -65,6 +65,17 @@ class ApiClient {
     return this.request<any[]>('/auth/demo-accounts');
   }
 
+  public async sandboxLogin(role: 'SUPER_ADMIN' | 'STUDENT' | 'FACULTY') {
+    const data = await this.request<any>('/auth/sandbox-login', {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+    if (data.access_token) {
+      this.setToken(data.access_token);
+    }
+    return data;
+  }
+
   public async devLogin(email: string) {
     const data = await this.request<any>('/auth/dev-login', {
       method: 'POST',
@@ -97,6 +108,23 @@ class ApiClient {
     return this.request<any>('/students/me', {
       method: 'PUT',
       body: JSON.stringify(updates),
+    });
+  }
+
+  public async uploadAvatar(file?: File) {
+    const formData = new FormData();
+    if (file) {
+      formData.append('file', file);
+    }
+    return this.request<any>('/students/me/avatar/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  public async removeAvatar() {
+    return this.request<any>('/students/me/avatar', {
+      method: 'DELETE',
     });
   }
 
@@ -378,6 +406,76 @@ class ApiClient {
     return this.request<any>(`/chat/conversations/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  public async renameConversation(id: string, title: string) {
+    return this.request<any>(`/chat/conversations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    });
+  }
+
+  public streamChatMessage(
+    conversationId: string,
+    query: string,
+    callbacks: {
+      onCitations?: (citations: any[]) => void;
+      onWidget?: (widget: any) => void;
+      onDelta?: (token: string) => void;
+      onDone?: (info: any) => void;
+      onError?: (err: any) => void;
+    }
+  ): () => void {
+    const token = this.getToken();
+    const url = `${API_BASE_URL}/chat/conversations/${conversationId}/stream?query=${encodeURIComponent(query)}`;
+    const controller = new AbortController();
+
+    fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`SSE connection failed HTTP ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        if (!reader) return;
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            const lines = part.split('\n');
+            let event = 'message';
+            let dataStr = '';
+            for (const line of lines) {
+              if (line.startsWith('event: ')) event = line.slice(7).trim();
+              else if (line.startsWith('data: ')) dataStr = line.slice(6).trim();
+            }
+            if (!dataStr) continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (event === 'citations') callbacks.onCitations?.(data);
+              else if (event === 'widget') callbacks.onWidget?.(data);
+              else if (event === 'delta') callbacks.onDelta?.(data.text);
+              else if (event === 'done') callbacks.onDone?.(data);
+            } catch (_) {}
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          callbacks.onError?.(err);
+        }
+      });
+
+    return () => controller.abort();
   }
 
   public async sendChatMessageV1(conversationId: string, content: string) {

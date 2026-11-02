@@ -15,6 +15,7 @@ import { executeRAGQuery } from '../services/ragEngine';
 import { searchStudents } from '../services/discoveryEngine';
 import { processAgentInput, ApplicationSlots } from '../services/applicationAgentEngine';
 import { apiClient } from '../services/apiClient';
+import { realtimeClient } from '../services/realtimeClient';
 
 export type ActiveView =
   | 'landing'
@@ -35,6 +36,7 @@ interface AppContextType {
   setActiveView: (view: ActiveView) => void;
   // Auth
   loginAs: (userEmail: string) => boolean;
+  sandboxLogin: (role: 'SUPER_ADMIN' | 'STUDENT' | 'FACULTY') => Promise<boolean>;
   logout: () => void;
   authError: string | null;
   clearAuthError: () => void;
@@ -116,8 +118,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [chats, setChats] = useState<Chat[]>(() => {
-    const saved = localStorage.getItem('pocketuni_chats');
-    return saved ? JSON.parse(saved) : INITIAL_CHATS;
+    const savedUser = localStorage.getItem('pocketuni_user');
+    const u = savedUser ? JSON.parse(savedUser) : null;
+    if (u?.id) {
+      const saved = localStorage.getItem(`pocketuni_chats_${u.id}`);
+      return saved ? JSON.parse(saved) : INITIAL_CHATS;
+    }
+    return INITIAL_CHATS;
   });
 
   const [currentChatId, setCurrentChatId] = useState<string | null>(() => {
@@ -125,13 +132,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => {
-    const saved = localStorage.getItem('pocketuni_messages');
-    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
+    const savedUser = localStorage.getItem('pocketuni_user');
+    const u = savedUser ? JSON.parse(savedUser) : null;
+    if (u?.id) {
+      const saved = localStorage.getItem(`pocketuni_messages_${u.id}`);
+      return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
+    }
+    return INITIAL_MESSAGES;
   });
 
   const [applications, setApplications] = useState<Application[]>(() => {
-    const saved = localStorage.getItem('pocketuni_applications');
-    return saved ? JSON.parse(saved) : INITIAL_APPLICATIONS;
+    const savedUser = localStorage.getItem('pocketuni_user');
+    const u = savedUser ? JSON.parse(savedUser) : null;
+    if (u?.id) {
+      const saved = localStorage.getItem(`pocketuni_applications_${u.id}`);
+      return saved ? JSON.parse(saved) : INITIAL_APPLICATIONS;
+    }
+    return INITIAL_APPLICATIONS;
   });
 
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
@@ -149,14 +166,114 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyProfile | null>(null);
   const [previewStudentCard, setPreviewStudentCard] = useState<StudentMatchCard | null>(null);
 
-  // Sync to localStorage
+  const abortStreamingRef = React.useRef<(() => void) | null>(null);
+
+  // Sync to user-scoped localStorage & live WebSockets
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('pocketuni_user', JSON.stringify(currentUser));
+      const token = apiClient.getToken();
+      if (token) {
+        realtimeClient.connect(token);
+      }
     } else {
       localStorage.removeItem('pocketuni_user');
+      realtimeClient.disconnect();
     }
   }, [currentUser]);
+
+  // Load user-scoped conversations and applications upon login/switch
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setChats([]);
+      setCurrentChatId(null);
+      setMessagesMap({});
+      setApplications([]);
+      return;
+    }
+
+    const userChatKey = `pocketuni_chats_${currentUser.id}`;
+    const userMsgKey = `pocketuni_messages_${currentUser.id}`;
+    const userAppKey = `pocketuni_applications_${currentUser.id}`;
+
+    const savedChats = localStorage.getItem(userChatKey);
+    const parsedChats: Chat[] = savedChats ? JSON.parse(savedChats) : [];
+    setChats(parsedChats);
+    setCurrentChatId(parsedChats.length > 0 ? parsedChats[0].id : null);
+
+    const savedMsgs = localStorage.getItem(userMsgKey);
+    setMessagesMap(savedMsgs ? JSON.parse(savedMsgs) : {});
+
+    const savedApps = localStorage.getItem(userAppKey);
+    setApplications(savedApps ? JSON.parse(savedApps) : []);
+
+    // Sync conversations from backend
+    apiClient.getConversations().then(backendConvs => {
+      if (backendConvs && Array.isArray(backendConvs) && backendConvs.length > 0) {
+        const mappedChats: Chat[] = backendConvs.map(c => ({
+          id: c.id,
+          userId: currentUser.id,
+          title: c.title,
+          kind: (c.kind as any) || 'general',
+          status: (c.status as any) || 'active',
+          createdAt: c.createdAt,
+          lastMessageAt: c.lastMessageAt || c.createdAt
+        }));
+        setChats(mappedChats);
+        setCurrentChatId(prev => prev || mappedChats[0].id);
+      }
+    }).catch(() => {});
+
+    // Sync applications from backend
+    apiClient.listApplications().then(backendApps => {
+      if (backendApps && Array.isArray(backendApps)) {
+        setApplications(backendApps);
+      }
+    }).catch(() => {});
+
+    // Subscribe to live WebSocket updates
+    const unsubApp = realtimeClient.subscribe('application_status_changed', (payload) => {
+      console.log('[Realtime] Application status changed:', payload);
+      apiClient.listApplications().then(fresh => {
+        if (fresh && Array.isArray(fresh)) setApplications(fresh);
+      }).catch(() => {});
+    });
+
+    const unsubFac = realtimeClient.subscribe('faculty_profile_updated', (payload) => {
+      console.log('[Realtime] Faculty profile updated:', payload);
+    });
+
+    return () => {
+      unsubApp();
+      unsubFac();
+    };
+  }, [currentUser?.id]);
+
+  // Load conversation messages from backend on chat switch
+  useEffect(() => {
+    if (!currentChatId || currentChatId.startsWith('chat-')) return;
+    if (!messagesMap[currentChatId] || messagesMap[currentChatId].length === 0) {
+      apiClient.getConversation(currentChatId).then(conv => {
+        if (conv && conv.messages) {
+          const loadedMsgs: Message[] = conv.messages.map((m: any) => ({
+            id: m.id,
+            chatId: conv.id,
+            role: m.role,
+            content: m.content,
+            contentType: m.contentType || 'text',
+            sources: m.sources || [],
+            profileCards: m.profileCards || undefined,
+            feedback: m.feedback || undefined,
+            createdAt: m.createdAt
+          }));
+          setMessagesMap(prev => ({
+            ...prev,
+            [conv.id]: loadedMsgs
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [currentChatId]);
 
   useEffect(() => {
     if (currentStudentProfile) {
@@ -169,16 +286,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [sidebarCollapsed]);
 
   useEffect(() => {
-    localStorage.setItem('pocketuni_chats', JSON.stringify(chats));
-  }, [chats]);
+    if (currentUser?.id) {
+      localStorage.setItem(`pocketuni_chats_${currentUser.id}`, JSON.stringify(chats));
+    }
+  }, [chats, currentUser?.id]);
 
   useEffect(() => {
-    localStorage.setItem('pocketuni_messages', JSON.stringify(messagesMap));
-  }, [messagesMap]);
+    if (currentUser?.id) {
+      localStorage.setItem(`pocketuni_messages_${currentUser.id}`, JSON.stringify(messagesMap));
+    }
+  }, [messagesMap, currentUser?.id]);
 
   useEffect(() => {
-    localStorage.setItem('pocketuni_applications', JSON.stringify(applications));
-  }, [applications]);
+    if (currentUser?.id) {
+      localStorage.setItem(`pocketuni_applications_${currentUser.id}`, JSON.stringify(applications));
+    }
+  }, [applications, currentUser?.id]);
 
   useEffect(() => {
     localStorage.setItem('pocketuni_notifications', JSON.stringify(notifications));
@@ -296,10 +419,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const sandboxLogin = async (role: 'SUPER_ADMIN' | 'STUDENT' | 'FACULTY'): Promise<boolean> => {
+    setAuthError(null);
+    try {
+      const res = await apiClient.sandboxLogin(role);
+      const user = res.user;
+      const appUser: User = {
+        id: user.id,
+        googleSub: `sandbox-sub-${user.id}`,
+        email: user.email,
+        role: user.role === 'SUPER_ADMIN' ? 'super_admin' : (user.role === 'FACULTY' ? 'faculty' : 'student'),
+        fullName: user.full_name,
+        pictureUrl: user.picture_url,
+        isActive: true,
+        lastLoginAt: new Date().toISOString(),
+        branch: user.branch,
+        departmentName: user.department_name,
+        designation: user.designation,
+        yearOfStudy: user.year_of_study
+      };
+      setCurrentUser(appUser);
+      if (appUser.role === 'student') {
+        const profRes = await apiClient.getMyStudentProfile().catch(() => null);
+        if (profRes) setCurrentStudentProfile(profRes);
+        setActiveView('chat');
+      } else if (appUser.role === 'faculty') {
+        setCurrentStudentProfile(null);
+        setActiveView('chat');
+      } else {
+        setCurrentStudentProfile(null);
+        setActiveView('super_admin_dashboard');
+      }
+      return true;
+    } catch (err: any) {
+      setAuthError(err.message || 'Sandbox login failed.');
+      return false;
+    }
+  };
+
   const logout = () => {
+    realtimeClient.disconnect();
     apiClient.logout().catch(() => {});
     setCurrentUser(null);
     setCurrentStudentProfile(null);
+    setChats([]);
+    setCurrentChatId(null);
+    setMessagesMap({});
+    setApplications([]);
     setActiveView('landing');
   };
 
@@ -323,6 +489,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...prev,
       [newChatId]: []
     }));
+
+    if (currentUser) {
+      apiClient.createConversation(newChat.title, kind).then(res => {
+        if (res?.id) {
+          setChats(prev => prev.map(c => c.id === newChatId ? { ...c, id: res.id } : c));
+          setCurrentChatId(res.id);
+          setMessagesMap(prev => {
+            const copy = { ...prev };
+            copy[res.id] = copy[newChatId] || [];
+            delete copy[newChatId];
+            return copy;
+          });
+        }
+      }).catch(() => {});
+    }
 
     if (kind === 'application_agent') {
       setActiveView('application_agent_chat');
@@ -357,10 +538,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const remaining = chats.filter(c => c.id !== id);
       setCurrentChatId(remaining.length > 0 ? remaining[0].id : null);
     }
+    if (!id.startsWith('chat-')) {
+      apiClient.deleteConversation(id).catch(() => {});
+    }
   };
 
   const renameChat = (id: string, newTitle: string) => {
     setChats(prev => prev.map(c => c.id === id ? { ...c, title: newTitle } : c));
+    if (!id.startsWith('chat-')) {
+      apiClient.renameConversation(id, newTitle).catch(() => {});
+    }
   };
 
   const setMessageFeedback = (messageId: string, feedback: 1 | -1) => {
@@ -372,12 +559,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         [currentChatId]: list.map(m => m.id === messageId ? { ...m, feedback } : m)
       };
     });
+    apiClient.submitMessageFeedbackV1(messageId, feedback).catch(() => {});
   };
 
-  let streamingAbort = false;
-
   const stopStreaming = () => {
-    streamingAbort = true;
+    if (abortStreamingRef.current) {
+      abortStreamingRef.current();
+      abortStreamingRef.current = null;
+    }
     setIsStreaming(false);
   };
 
@@ -411,7 +600,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
 
     setIsStreaming(true);
-    streamingAbort = false;
 
     try {
       if (isAppAgent && currentUser) {
@@ -539,27 +727,109 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           try {
             let convId = currentChatId;
             if (convId.startsWith('chat-')) {
-              const newConv = await apiClient.createConversation(activeChat?.title || 'New Conversation', 'general');
-              convId = newConv.id;
+              try {
+                const newConv = await apiClient.createConversation(activeChat?.title || 'New Conversation', 'general');
+                convId = newConv.id;
+                setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, id: newConv.id } : c));
+                setCurrentChatId(newConv.id);
+              } catch (_) {}
             }
-            const res = await apiClient.sendChatMessageV1(convId, text);
-            const asst = res.assistantMessage;
 
-            const assistantMsg: Message = {
-              id: asst.id,
-              chatId: currentChatId,
+            const asstMsgId = `msg-asst-${Date.now()}`;
+            const initialAsstMsg: Message = {
+              id: asstMsgId,
+              chatId: convId,
               role: 'assistant',
-              content: asst.content,
+              content: '',
               contentType: 'text',
-              createdAt: asst.createdAt || new Date().toISOString(),
-              sources: asst.sources || [],
-              widget: asst.widget || undefined
+              createdAt: new Date().toISOString(),
+              sources: []
             };
 
             setMessagesMap(prev => ({
               ...prev,
-              [currentChatId]: [...(prev[currentChatId] || []), assistantMsg]
+              [convId]: [...(prev[convId] || []), initialAsstMsg]
             }));
+
+            let streamedText = '';
+            const abortSSE = apiClient.streamChatMessage(convId, text, {
+              onCitations: (citations) => {
+                setMessagesMap(prev => {
+                  const msgs = prev[convId] || [];
+                  return {
+                    ...prev,
+                    [convId]: msgs.map(m => m.id === asstMsgId ? { ...m, sources: citations } : m)
+                  };
+                });
+              },
+              onWidget: (widget) => {
+                setMessagesMap(prev => {
+                  const msgs = prev[convId] || [];
+                  return {
+                    ...prev,
+                    [convId]: msgs.map(m => m.id === asstMsgId ? { ...m, widget } : m)
+                  };
+                });
+              },
+              onDelta: (deltaToken) => {
+                streamedText += deltaToken;
+                setMessagesMap(prev => {
+                  const msgs = prev[convId] || [];
+                  return {
+                    ...prev,
+                    [convId]: msgs.map(m => m.id === asstMsgId ? { ...m, content: streamedText } : m)
+                  };
+                });
+              },
+              onDone: (info) => {
+                if (info?.messageId) {
+                  setMessagesMap(prev => {
+                    const msgs = prev[convId] || [];
+                    return {
+                      ...prev,
+                      [convId]: msgs.map(m => m.id === asstMsgId ? { ...m, id: info.messageId } : m)
+                    };
+                  });
+                }
+                setIsStreaming(false);
+              },
+              onError: async (err) => {
+                console.warn('SSE stream fallback to REST:', err);
+                try {
+                  const res = await apiClient.sendChatMessageV1(convId, text);
+                  const asst = res.assistantMessage;
+                  setMessagesMap(prev => {
+                    const msgs = prev[convId] || [];
+                    return {
+                      ...prev,
+                      [convId]: msgs.map(m => m.id === asstMsgId ? {
+                        ...m,
+                        id: asst.id,
+                        content: asst.content,
+                        sources: asst.sources || [],
+                        widget: asst.widget || undefined
+                      } : m)
+                    };
+                  });
+                } catch (restErr) {
+                  const ragRes = executeRAGQuery(text);
+                  setMessagesMap(prev => {
+                    const msgs = prev[convId] || [];
+                    return {
+                      ...prev,
+                      [convId]: msgs.map(m => m.id === asstMsgId ? {
+                        ...m,
+                        content: ragRes.answer,
+                        sources: ragRes.sources
+                      } : m)
+                    };
+                  });
+                } finally {
+                  setIsStreaming(false);
+                }
+              }
+            });
+            abortStreamingRef.current = abortSSE;
           } catch (backendErr) {
             const ragRes = executeRAGQuery(text);
             const assistantMsg: Message = {
@@ -576,8 +846,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               ...prev,
               [currentChatId]: [...(prev[currentChatId] || []), assistantMsg]
             }));
+            setIsStreaming(false);
           }
-          setIsStreaming(false);
         }
       }
     } catch (err: any) {
@@ -613,8 +883,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const shareApplicationToProfessor = (appId: string, facultyId: string): boolean => {
-    const prof = MITS_FACULTY.find(f => f.facultyId === facultyId);
-    if (!prof) return false;
+    const prof = MITS_FACULTY.find(f => f.facultyId === facultyId) || {
+      facultyId,
+      name: 'Faculty Member',
+      department: 'Centre for Artificial Intelligence & ECE'
+    };
 
     setApplications(prev => prev.map(a => {
       if (a.id === appId) {
@@ -641,6 +914,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       return a;
     }));
+
+    // Trigger backend share
+    (async () => {
+      try {
+        let targetId = appId;
+        if (appId.startsWith('app-draft-')) {
+          const app = applications.find(a => a.id === appId);
+          if (app) {
+            const created = await apiClient.createApplication({
+              title: app.title,
+              type: app.type,
+              content: app.content,
+              facultyId
+            });
+            targetId = created.id;
+          }
+        }
+        await apiClient.shareApplication(targetId, facultyId);
+      } catch (e) {
+        console.warn('Backend shareApplication sync:', e);
+      }
+    })();
 
     // Create notification for professor
     const newNotif: NotificationItem = {
@@ -694,6 +989,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       return a;
     }));
+
+    apiClient.decideApplication(appId, decision, note).catch((e) => {
+      console.warn('Backend decideApplication sync:', e);
+    });
 
     // Create notification for student
     const studentNotif: NotificationItem = {
@@ -764,6 +1063,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         activeView,
         setActiveView,
         loginAs,
+        sandboxLogin,
         logout,
         authError,
         clearAuthError,

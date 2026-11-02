@@ -7,8 +7,10 @@ from backend.app.models.identity import User
 from backend.app.models.student import StudentProfile
 from backend.app.models.faculty import FacultyProfile, FacultyResearchInterest
 from backend.app.models.academic import Laboratory, ClassCoordinator
+from backend.app.models.document import InstitutionalDocument
 from backend.app.services.timetable_service import timetable_service
 from backend.app.services.gemini_service import gemini_service
+from backend.app.services.institutional_links import resolve_institutional_link, INSTITUTIONAL_LINK_REGISTRY
 
 logger = logging.getLogger("pocketuni.intent_router")
 
@@ -19,14 +21,29 @@ class IntentRouter:
     Directs institutional inquiries to appropriate authoritative data resolvers.
     """
 
+    def route_query(
+        self,
+        db: Session,
+        query: str,
+        user: Optional[User] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        intent = self.classify_intent(query)
+        return self.handle_intent(db, intent, query, user, conversation_history)
+
     def classify_intent(self, query: str) -> str:
         q = query.lower().strip()
+
+        # 0. Check for verified Institutional Link & Portal match first
+        link_match = resolve_institutional_link(query)
+        if link_match:
+            return "INSTITUTIONAL_LINK"
 
         # 1. Faculty Availability
         if any(p in q for p in [
             "who is free", "is teacher free", "is faculty free", "available at",
             "no scheduled class", "free at", "teacher available", "faculty available",
-            "teacher has no class", "free teacher", "free faculty"
+            "teacher has no class", "free teacher", "free faculty", "faculty free at"
         ]):
             return "FACULTY_AVAILABILITY"
 
@@ -83,7 +100,10 @@ class IntentRouter:
         Executes specialized deterministic intent handling.
         Returns None if intent falls back to general institutional RAG.
         """
-        if intent == "TIMETABLE_QUERY":
+        if intent == "INSTITUTIONAL_LINK":
+            return self._handle_institutional_link(query)
+
+        elif intent == "TIMETABLE_QUERY":
             return self._handle_timetable(db, query, user)
 
         elif intent == "FACULTY_AVAILABILITY":
@@ -100,20 +120,129 @@ class IntentRouter:
 
         return None
 
+    def _handle_institutional_link(self, query: str) -> Optional[Dict[str, Any]]:
+        item = resolve_institutional_link(query)
+        if not item:
+            return None
+
+        answer = (
+            f"### {item['title']}\n\n"
+            f"{item['description']}\n\n"
+            f"🔗 **Official Access URL**: [{item['url']}]({item['url']})\n\n"
+            f"- **Managing Body**: {item['department']}\n"
+            f"- **System Classification**: `{item['category']}`\n"
+            f"- **Verification Authority**: {item['source']}"
+        )
+
+        return {
+            "answer": answer,
+            "intent": "INSTITUTIONAL_LINK",
+            "citations": [{
+                "title": item["title"],
+                "sourceUrl": item["url"],
+                "category": item["category"],
+                "page": 1,
+                "section": item["department"],
+                "snippet": item["description"]
+            }]
+        }
+
     def _handle_timetable(self, db: Session, query: str, user: User) -> Dict[str, Any]:
         """
-        Handles student timetable lookup grounded in authenticated profile context.
+        Handles student timetable lookup grounded strictly in authenticated profile context
+        or query-extracted attributes. Zero unsafe assumptions or silent fallbacks.
         """
-        # Determine student branch and semester
-        student_prof = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
-        branch = user.branch or (student_prof.specialization if student_prof else None) or "Information Technology (Artificial Intelligence and Robotics)"
-        semester = f"{student_prof.semester} Semester" if student_prof and student_prof.semester else "III Semester"
-        section = student_prof.section if student_prof and student_prof.section else "A"
+        q_lower = query.lower()
+        branch = None
+        semester = None
+        section = None
+
+        # 1. Parse branch from query
+        if "robotics" in q_lower or "air" in q_lower or "ai & robotics" in q_lower or "it (air)" in q_lower:
+            branch = "Information Technology (Artificial Intelligence and Robotics)"
+        elif "aiml" in q_lower or "machine learning" in q_lower:
+            branch = "Artificial Intelligence and Machine Learning"
+        elif "aids" in q_lower or "data science" in q_lower:
+            branch = "Artificial Intelligence and Data Science"
+        elif "cai" in q_lower or "artificial intelligence" in q_lower:
+            branch = "Artificial Intelligence"
+        elif "cse" in q_lower or "computer science" in q_lower:
+            branch = "Computer Science & Engineering"
+        elif "iot" in q_lower or "internet of things" in q_lower:
+            branch = "Centre for Internet of Things"
+        elif "civil" in q_lower:
+            branch = "Civil Engineering"
+        elif "mechanical" in q_lower:
+            branch = "Mechanical Engineering"
+        elif "electrical" in q_lower:
+            branch = "Electrical Engineering"
+        elif "chemical" in q_lower:
+            branch = "Chemical Engineering"
+
+        # 2. Parse semester from query
+        if any(k in q_lower for k in ["3rd sem", "iii sem", "third sem", "2nd year", "second year"]):
+            semester = "III Semester"
+        elif any(k in q_lower for k in ["5th sem", "v sem", "fifth sem", "3rd year", "third year"]):
+            semester = "V Semester"
+        elif any(k in q_lower for k in ["7th sem", "vii sem", "seventh sem", "4th year", "final year"]):
+            semester = "VII Semester"
+        elif any(k in q_lower for k in ["1st sem", "i sem", "first sem", "1st year", "first year"]):
+            semester = "I Semester"
+
+        # 3. Parse section from query
+        if any(k in q_lower for k in ["sec b", "section b", "section 2", "sec 2"]):
+            section = "B"
+        elif any(k in q_lower for k in ["sec a", "section a", "section 1", "sec 1"]):
+            section = "A"
+
+        # 4. Fallback to authenticated student profile if parameters are missing
+        student_prof = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first() if user else None
+        if user and not branch and (user.branch or (student_prof and student_prof.specialization)):
+            branch = user.branch or student_prof.specialization
+        if not semester and student_prof and student_prof.semester:
+            sem_map = {
+                1: "I Semester", 2: "II Semester", 3: "III Semester", 4: "IV Semester",
+                5: "V Semester", 6: "VI Semester", 7: "VII Semester", 8: "VIII Semester"
+            }
+            semester = sem_map.get(student_prof.semester, f"{student_prof.semester} Semester")
+        if not section and student_prof and student_prof.section:
+            section = student_prof.section
+
+        # If branch or semester is STILL undetermined, ask for concise clarification honestly
+        if not branch or not semester:
+            return {
+                "answer": (
+                    "To retrieve your exact timetable, please specify your branch/programme (e.g. *Artificial Intelligence & Robotics*, "
+                    "*AIML*, or *AIDS*), semester (e.g. *III, V, or VII*), and section (e.g. *A or B*).\n\n"
+                    "For example: *'What is my timetable for III Sem AIR Section A tomorrow?'*"
+                ),
+                "intent": "TIMETABLE_QUERY",
+                "citations": [],
+                "needs_clarification": True
+            }
+
+        # Check if requested branch and semester are published in master timetable database
+        is_supported_sem = semester in ["III Semester", "V Semester", "VII Semester"]
+        is_supported_branch = any(k in branch for k in ["Robotics", "AIR", "Machine Learning", "AIML", "Data Science", "AIDS", "Artificial Intelligence"])
+
+        if not (is_supported_sem and is_supported_branch):
+            return {
+                "answer": (
+                    f"Official master timetables for the **July–December 2026** academic session are currently published only for "
+                    f"Centre for Artificial Intelligence programmes (Semesters III, V, and VII).\n\n"
+                    f"No published timetable records were found for **{branch} ({semester})**. "
+                    f"Please consult your departmental notice board or class coordinator for offline schedule details."
+                ),
+                "intent": "TIMETABLE_QUERY",
+                "citations": []
+            }
+
+        section = section or "A"
 
         # Check if query asks for a specific day
         day_query = None
         for day in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "today", "tomorrow"]:
-            if day in query.lower():
+            if day in q_lower:
                 day_query = day
                 break
 
@@ -126,14 +255,25 @@ class IntentRouter:
         )
 
         day_name = schedule["day"]
+
+        # Fetch actual document metadata from database
+        sem_roman = semester.split()[0] if semester else "III"
+        doc = db.query(InstitutionalDocument).filter(
+            InstitutionalDocument.category == "TIMETABLE",
+            InstitutionalDocument.semester.ilike(f"%{sem_roman}%")
+        ).first()
+
+        doc_title = doc.title if doc else f"Master Time Table (Session: July-Dec. 2026) - {semester}"
+        doc_url = f"/api/v1/documents/{doc.id}/download" if doc else "https://web.mitsgwalior.in/academics/academic-calendar"
+
         if schedule.get("is_holiday"):
-            answer = f"**Schedule for {day_name} ({semester}, {branch})**\n\nNo classes are scheduled on {day_name} (Academic Holiday/Off-day)."
+            answer = f"**Schedule for {day_name} ({semester}, {branch}, Section {section})**\n\nNo classes are scheduled on {day_name} (Academic Holiday/Off-day)."
             return {
                 "answer": answer,
                 "intent": "TIMETABLE_QUERY",
                 "citations": [{
-                    "title": f"Master Timetable (Session: July-Dec. 2026) - {semester}",
-                    "sourceUrl": "https://web.mitsgwalior.in/academics/timetables",
+                    "title": doc_title,
+                    "sourceUrl": doc_url,
                     "category": "TIMETABLE",
                     "page": 1,
                     "section": branch,
@@ -156,15 +296,15 @@ class IntentRouter:
                 f"  - **Room/Venue**: `{c['room']}`"
             )
 
-        lines.append("\n*Official Session: July-Dec. 2026 (Centre for Artificial Intelligence)*")
+        lines.append(f"\n*Official Session: July-Dec. 2026 | Timetable Source: {doc_title}*")
         answer = "\n".join(lines)
 
         return {
             "answer": answer,
             "intent": "TIMETABLE_QUERY",
             "citations": [{
-                "title": f"Master Time Table (Session: July-Dec. 2026) - {semester}",
-                "sourceUrl": "https://web.mitsgwalior.in/academics/timetables",
+                "title": doc_title,
+                "sourceUrl": doc_url,
                 "category": "TIMETABLE",
                 "page": 1,
                 "section": branch,
@@ -197,15 +337,15 @@ class IntentRouter:
         slot_lbl = avail["slot_label"]
 
         lines = [
-            f"**Faculty Availability for {day_name} ({slot_lbl}: {time_win} IST)**\n",
-            f"Based on the published teaching timetable for {day_name}, the following faculty members have **no scheduled classroom teaching or laboratory sessions** during this period:\n"
+            f"**Faculty Teaching Schedule for {day_name} ({slot_lbl}: {time_win} IST)**\n",
+            f"Based on the published master teaching timetables for {day_name}, the following faculty members have **no scheduled classroom teaching or laboratory classes** during this period:\n"
         ]
 
         for f in avail["free_faculty"][:12]:
-            lines.append(f"- **{f['name']}** — *{f['designation']}* (Office: {f.get('office', 'Centre for AI')})")
+            lines.append(f"- **{f['name']}** — *{f['designation']}* (Office: {f.get('office', 'Department Block')})")
 
         if len(avail["free_faculty"]) > 12:
-            lines.append(f"\n*(+ {len(avail['free_faculty']) - 12} other department faculty members without scheduled classes)*\n")
+            lines.append(f"\n*(+ {len(avail['free_faculty']) - 12} other timetable-covered faculty members without scheduled classes)*\n")
 
         if avail["busy_faculty"]:
             lines.append("\n**Faculty with scheduled classes during this period:**")
@@ -220,10 +360,10 @@ class IntentRouter:
             "intent": "FACULTY_AVAILABILITY",
             "citations": [{
                 "title": "Master Time Table (Session: July-Dec. 2026)",
-                "sourceUrl": "https://web.mitsgwalior.in/academics/timetables",
+                "sourceUrl": "https://web.mitsgwalior.in/academics/academic-calendar",
                 "category": "TIMETABLE",
-                "page": 4,
-                "section": "Faculty Workload Grid",
+                "page": 1,
+                "section": "Master Teaching Grid",
                 "snippet": f"Faculty teaching allocations for {day_name} at {time_win}."
             }],
             "widget": {

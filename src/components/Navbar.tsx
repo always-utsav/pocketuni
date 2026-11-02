@@ -178,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
               {currentUser.fullName}
             </span>
             <span className="text-brand-muted hidden md:inline text-[11px]">
-              ({currentUser.email})
+              {currentUser.role === 'super_admin' ? 'Super Admin' : currentUser.role === 'faculty' ? 'Faculty Member' : 'Student (CAI)'}
             </span>
           </div>
         )}

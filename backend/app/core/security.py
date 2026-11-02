@@ -59,3 +59,6 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         return decoded_payload
     except Exception:
         return None
+
+
+decode_access_token = decode_token

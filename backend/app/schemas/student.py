@@ -43,8 +43,8 @@ class StudentProfileUpdate(BaseModel):
 class StudentMatchCardSchema(BaseModel):
     studentId: str
     name: str
-    email: str
-    pictureUrl: str
+    email: Optional[str] = None
+    pictureUrl: Optional[str] = None
     branch: str
     year: int
     rollNumber: Optional[str] = None
@@ -55,4 +55,4 @@ class StudentMatchCardSchema(BaseModel):
     preferredRoles: List[str] = []
     githubUrl: Optional[str] = None
     linkedinUrl: Optional[str] = None
-    is_demo: bool = True
+    is_demo: bool = False

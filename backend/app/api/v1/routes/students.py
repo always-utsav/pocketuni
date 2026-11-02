@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
 from backend.app.core.permissions import get_current_user, require_student
@@ -186,10 +186,13 @@ def discover_students(
     """
     Search and filter public student profiles for peer collaboration and hackathons.
     Does not expose sensitive academic marks or private contact details.
+    Excludes the searching student themselves, demo accounts, and users who have not opted in to public visibility.
     """
     profiles = db.query(StudentProfile).join(User).filter(
         User.is_deleted == False,
-        User.is_active == True
+        User.is_active == True,
+        User.is_demo == False,
+        User.id != current_user.id
     ).all()
 
     cards: List[StudentMatchCardSchema] = []
@@ -197,7 +200,10 @@ def discover_students(
 
     for p in profiles:
         user = p.user
-        if not user or (p.visibility and not p.visibility.is_public):
+        if not user:
+            continue
+        # Strict explicit opt-in required: must have visibility and is_public must be True
+        if not p.visibility or not p.visibility.is_public:
             continue
         if hackathons_only and not p.open_for_hackathons:
             continue
@@ -210,11 +216,14 @@ def discover_students(
         if q_norm and q_norm not in all_text:
             continue
 
+        # Check contact privacy: only expose email if show_contact is explicitly True
+        exposed_email = user.email if (p.visibility and p.visibility.show_contact) else None
+
         cards.append(
             StudentMatchCardSchema(
                 studentId=user.id,
                 name=user.full_name,
-                email=user.email,
+                email=exposed_email,
                 pictureUrl=user.picture_url or None,
                 branch=user.branch or "Artificial Intelligence",
                 year=int(user.year_of_study) if user.year_of_study and str(user.year_of_study).isdigit() else 2,
@@ -234,33 +243,87 @@ def discover_students(
 
 
 @router.post("/me/avatar")
+@router.post("/me/avatar/upload")
 async def upload_student_avatar(
+    file: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db)
 ):
     """
-    Voluntary avatar upload or initials SVG generation.
-    Enforces privacy by not using stock Unsplash faces.
+    Voluntary avatar management: supports genuine image file uploads (PNG/JPEG/WebP <= 2MB)
+    with strict sanitization and validation, or generates an institutional monogram badge.
     """
     import os
+    import uuid
+    import io
+    from PIL import Image
     from backend.app.core.config import settings
-
-    # Generate personalized institutional SVG avatar
-    initials = "".join([part[0] for part in current_user.full_name.split()[:2]]).upper() or "ST"
-    svg_avatar = f"""<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-      <rect width="128" height="128" fill="#202C39" rx="64"/>
-      <text x="64" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="600" fill="#F7F6F2" text-anchor="middle" dominant-baseline="middle">{initials}</text>
-    </svg>"""
 
     avatar_dir = os.path.join(settings.STORAGE_DIR, "avatars")
     os.makedirs(avatar_dir, exist_ok=True)
-    fname = f"avatar_{current_user.id}.svg"
-    fpath = os.path.join(avatar_dir, fname)
 
-    with open(fpath, "w", encoding="utf-8") as f:
-        f.write(svg_avatar)
+    if file and file.filename:
+        # 1. Validate file extension
+        ext = os.path.splitext(file.filename)[1].lower()
+        allowed_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+        if ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file extension '{ext}'. Allowed extensions: {', '.join(allowed_extensions)}"
+            )
 
-    avatar_url = f"/api/v1/students/me/avatar/file/{fname}"
+        # 2. Validate MIME type
+        allowed_mimes = {"image/png", "image/jpeg", "image/webp"}
+        if file.content_type not in allowed_mimes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid content type '{file.content_type}'. Must be PNG, JPEG, or WebP."
+            )
+
+        # 3. Read and validate file size (2MB limit)
+        contents = await file.read()
+        max_size = 2 * 1024 * 1024
+        if len(contents) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size exceeds maximum allowed limit of 2MB."
+            )
+
+        # 4. Content verification & sanitization with PIL (rejects corrupted / polyglot files)
+        try:
+            image = Image.open(io.BytesIO(contents))
+            image.verify()  # Verifies file integrity
+            # Reopen to sanitize/re-encode
+            image = Image.open(io.BytesIO(contents))
+            image = image.convert("RGB")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Malformed or unsupported image file. Verification failed."
+            )
+
+        # 5. Generate secure random filename preventing path traversal
+        safe_name = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.png"
+        safe_path = os.path.join(avatar_dir, safe_name)
+
+        # Re-encode and save cleanly as PNG (strips malicious EXIF/scripts)
+        image.save(safe_path, format="PNG", optimize=True)
+        avatar_url = f"/api/v1/students/me/avatar/file/{safe_name}"
+
+    else:
+        # Generate clean institutional vector monogram badge
+        initials = "".join([part[0] for part in current_user.full_name.split()[:2]]).upper() or "ST"
+        svg_avatar = f"""<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" fill="#14252B" rx="64"/>
+  <circle cx="64" cy="64" r="56" fill="none" stroke="#B96D47" stroke-width="2"/>
+  <text x="64" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="42" font-weight="700" fill="#F5F3EE" text-anchor="middle" dominant-baseline="middle">{initials}</text>
+</svg>"""
+        safe_name = f"monogram_{current_user.id}.svg"
+        safe_path = os.path.join(avatar_dir, safe_name)
+        with open(safe_path, "w", encoding="utf-8") as f:
+            f.write(svg_avatar)
+        avatar_url = f"/api/v1/students/me/avatar/file/{safe_name}"
+
     current_user.picture_url = avatar_url
     db.commit()
 
@@ -271,16 +334,39 @@ async def upload_student_avatar(
     }
 
 
+@router.delete("/me/avatar")
+def remove_student_avatar(
+    current_user: User = Depends(require_student),
+    db: Session = Depends(get_db)
+):
+    """Removes student avatar and resets to neutral placeholder."""
+    current_user.picture_url = None
+    db.commit()
+    return {
+        "status": "SUCCESS",
+        "message": "Avatar removed successfully. Default institutional badge will be displayed."
+    }
+
+
 @router.get("/me/avatar/file/{filename}")
 def serve_avatar_file(filename: str):
     import os
+    import mimetypes
     from fastapi.responses import FileResponse, Response
     from backend.app.core.config import settings
 
-    fpath = os.path.join(settings.STORAGE_DIR, "avatars", filename)
-    if not os.path.exists(fpath):
-        # Return fallback SVG
-        svg = """<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" fill="#202C39" rx="64"/><text x="64" y="74" font-family="sans-serif" font-size="40" fill="#F7F6F2" text-anchor="middle" dominant-baseline="middle">PU</text></svg>"""
+    # Prevent path traversal
+    clean_name = os.path.basename(filename)
+    if clean_name != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid avatar filename.")
+
+    avatar_dir = os.path.abspath(os.path.join(settings.STORAGE_DIR, "avatars"))
+    fpath = os.path.abspath(os.path.join(avatar_dir, clean_name))
+
+    if not fpath.startswith(avatar_dir) or not os.path.exists(fpath):
+        # Return fallback neutral vector monogram
+        svg = """<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" fill="#14252B" rx="64"/><circle cx="64" cy="64" r="56" fill="none" stroke="#176B68" stroke-width="2"/><text x="64" y="74" font-family="sans-serif" font-size="40" font-weight="700" fill="#F5F3EE" text-anchor="middle" dominant-baseline="middle">PU</text></svg>"""
         return Response(content=svg, media_type="image/svg+xml")
 
-    return FileResponse(fpath, media_type="image/svg+xml")
+    mime_type, _ = mimetypes.guess_type(fpath)
+    return FileResponse(fpath, media_type=mime_type or "image/png")

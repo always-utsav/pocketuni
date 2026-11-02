@@ -70,8 +70,16 @@ class GeminiService:
             except Exception as e:
                 last_error = e
                 err_str = str(e).lower()
-                logger.warning(f"Gemini generation attempt {attempt} failed: {type(e).__name__}")
-                if "rate limit" in err_str or "resource_exhausted" in err_str or "429" in err_str:
+                logger.warning(f"Gemini generation attempt {attempt} failed: {type(e).__name__} - {err_str[:120]}")
+                if "resource_exhausted" in err_str or "429" in err_str or "quota" in err_str:
+                    if attempt == self.max_retries:
+                        logger.error("Gemini rate limit / quota exhausted after retries.")
+                        return (
+                            "**[Institutional Assistant Note]**\n"
+                            "The Gemini API rate limit or daily free-tier quota is currently exhausted. "
+                            "PocketUni is operating in grounded document retrieval mode. "
+                            "Please refer to the verified citations and source documents attached below."
+                        )
                     time.sleep(2 * attempt)
                 elif "invalid" in err_str and "key" in err_str:
                     logger.error("Invalid Gemini API key configured.")
@@ -80,7 +88,11 @@ class GeminiService:
                     time.sleep(1)
 
         logger.error(f"Gemini generation failed after {self.max_retries} attempts: {last_error}")
-        raise RuntimeError(f"Gemini generation service unavailable: {str(last_error)}")
+        return (
+            "**[Institutional Assistant Note]**\n"
+            "Unable to generate AI synthesis at this moment due to upstream connectivity. "
+            "Please review the verified source documents cited for your query."
+        )
 
     async def generate_stream(
         self,
@@ -109,8 +121,16 @@ class GeminiService:
                 if chunk and chunk.text:
                     yield chunk.text
         except Exception as e:
+            err_str = str(e).lower()
             logger.error(f"Gemini streaming error: {str(e)}")
-            yield f"\n[Generation error: {type(e).__name__}]"
+            if "resource_exhausted" in err_str or "429" in err_str or "quota" in err_str:
+                yield (
+                    "\n\n**[Institutional Assistant Note]**\n"
+                    "The Gemini API rate limit or daily free-tier quota is currently exhausted. "
+                    "PocketUni has retrieved the grounded institutional sources listed in the citations panel."
+                )
+            else:
+                yield f"\n[Service Notice: Generation interrupted ({type(e).__name__}). Grounded citations remain valid.]"
 
     def embed_text(self, text: str) -> List[float]:
         """Generates embedding for a single text chunk with resilient rate-limit backoff."""

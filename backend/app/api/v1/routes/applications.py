@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
-from backend.app.core.permissions import get_current_user, require_student
+from backend.app.core.permissions import get_current_user, require_student, require_super_admin
+from backend.app.services.realtime_service import realtime_manager
 from backend.app.models.identity import User
 from backend.app.models.application import (
     Application,
@@ -249,22 +250,39 @@ def share_application(
     )
     db.add(notif)
 
-    # Enqueue to institutional outbox
+    # Enqueue to institutional outbox (internal delivery is complete, external dispatch is queued)
     outbox = ApplicationOutbox(
         application_id=app.id,
         recipient_email=faculty.email,
         recipient_name=faculty.full_name,
         subject=f"[MITS PocketUni] Student Application: {app.title}",
         body=app.content,
-        status="SENT_TO_PROVIDER",
-        provider_response="Simulated official SMTP relay to @mitsgwalior.in",
-        attempt_count=1,
-        dispatched_at=datetime.now(timezone.utc),
+        status="QUEUED",
+        provider_response="Queued for external dispatch. Internal delivery completed to Faculty Sandbox Inbox.",
+        attempt_count=0,
+        dispatched_at=None,
         is_demo=app.is_demo
     )
     db.add(outbox)
     db.commit()
     db.refresh(app)
+
+    # Broadcast real-time event to faculty and super admin
+    realtime_manager.broadcast_event(
+        event_type="application_received",
+        data={
+            "applicationId": app.id,
+            "title": app.title,
+            "studentName": current_user.full_name,
+            "facultyId": faculty.id,
+            "submittedAt": app.sent_at.isoformat() if app.sent_at else None
+        },
+        target_user_ids=[faculty.id]
+    )
+    realtime_manager.broadcast_event(
+        event_type="application_status_changed",
+        data={"applicationId": app.id, "status": "sent"}
+    )
 
     return _serialize_app(app)
 
@@ -284,9 +302,13 @@ def decide_application(
     if "SUPER_ADMIN" not in user_roles and app.faculty_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only assigned faculty or Super Admin can make decisions.")
 
-    decision_status = payload.decision.lower()
-    if decision_status not in ["approved", "rejected"]:
-        raise HTTPException(status_code=400, detail="Decision must be 'approved' or 'rejected'.")
+    decision_status = payload.decision.lower().strip()
+    valid_decisions = ["approved", "rejected", "revision_requested"]
+    if decision_status not in valid_decisions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Decision must be one of: {', '.join(valid_decisions)}"
+        )
 
     prev_status = app.status
     app.status = decision_status
@@ -305,18 +327,43 @@ def decide_application(
     db.add(hist)
 
     # Notify student
-    notif_type = "application_approved" if decision_status == "approved" else "application_rejected"
+    if decision_status == "approved":
+        notif_type = "application_approved"
+        title_msg = "Application Approved"
+        body_msg = f"Your application '{app.title}' was approved by {current_user.full_name}."
+    elif decision_status == "rejected":
+        notif_type = "application_rejected"
+        title_msg = "Application Rejected"
+        body_msg = f"Your application '{app.title}' was rejected by {current_user.full_name}."
+    else:
+        notif_type = "application_revision_requested"
+        title_msg = "Revision Requested"
+        body_msg = f"{current_user.full_name} requested corrections on '{app.title}': {payload.note or 'Please review feedback.'}"
+
     notif = Notification(
         user_id=app.student_id,
         type=notif_type,
-        title=f"Application {decision_status.capitalize()}",
-        body=f"Your application '{app.title}' was {decision_status} by {current_user.full_name}.",
+        title=title_msg,
+        body=body_msg,
         application_id=app.id,
         is_demo=app.is_demo
     )
     db.add(notif)
     db.commit()
     db.refresh(app)
+
+    # Realtime notification to student
+    realtime_manager.broadcast_event(
+        event_type="application_decision_made",
+        data={
+            "applicationId": app.id,
+            "status": decision_status,
+            "decisionNote": payload.note,
+            "facultyName": current_user.full_name,
+            "studentId": app.student_id
+        },
+        target_user_ids=[app.student_id]
+    )
 
     return _serialize_app(app)
 
@@ -396,7 +443,7 @@ def download_application_docx(
 
 @router.get("/outbox/queue")
 def list_application_outbox(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db)
 ):
     """

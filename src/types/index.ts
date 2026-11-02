@@ -152,14 +152,17 @@ export interface FacultyProfile {
   qualification: string;
   researchAreas: string[];
   publications: FacultyPublication[];
+  professionalHighlights?: string[];
+  externalLinks?: Record<string, string>;
   emailPublic: string;
   phonePublic?: string;
+  phoneInternal?: string;
   officeLocation: string;
   officeHours: string;
   photoUrl: string;
   bio: string;
   sourceUrl: string;
-  contentHash: string;
+  contentHash?: string;
   lastSyncedAt: string;
   isMentor?: boolean;
   verificationStatus?: string;

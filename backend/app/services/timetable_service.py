@@ -10,14 +10,17 @@ from backend.app.models.identity import User
 
 logger = logging.getLogger("pocketuni.timetable")
 
-# Time slot standards for MITS Centre for AI (July-Dec 2026 Session)
+# Authoritative time slot standards for MITS Master Timetables (Session: July-Dec 2026)
+# Verified directly against official scanned timetable PDFs (III, V, VII Semesters)
 SLOT_TIMINGS = {
-    1: ("09:30 AM", "10:30 AM", "Period 1"),
-    2: ("10:30 AM", "11:30 AM", "Period 2"),
-    3: ("11:30 AM", "12:30 PM", "Period 3"),
-    4: ("01:30 PM", "02:30 PM", "Period 4"),
-    5: ("02:30 PM", "03:30 PM", "Period 5"),
-    6: ("03:30 PM", "04:30 PM", "Period 6"),
+    0: ("09:00 AM", "10:00 AM", "Slot 0 / Morning"),
+    1: ("10:00 AM", "11:00 AM", "Period 1"),
+    2: ("11:00 AM", "12:00 PM", "Period 2"),
+    3: ("12:00 PM", "01:00 PM", "Period 3"),
+    4: ("02:00 PM", "03:00 PM", "Period 4"),
+    5: ("03:00 PM", "04:00 PM", "Period 5"),
+    6: ("04:00 PM", "05:00 PM", "Period 6"),
+    7: ("05:00 PM", "06:00 PM", "Slot 7 / Extended Lab"),
 }
 
 FACULTY_CODE_MAP = {
@@ -441,25 +444,35 @@ class TimetableService:
         # Map 2 PM, 14:00, 10 AM, etc. to slot numbers if not provided
         if slot_number is None and time_query:
             tq = time_query.lower()
-            if "9:30" in tq or "10:00" in tq or "9 am" in tq or "10 am" in tq:
+            if "9 am" in tq or "09:00" in tq or "9:00" in tq:
+                slot_number = 0
+            elif "10:00" in tq or "10 am" in tq:
                 slot_number = 1
-            elif "10:30" in tq or "11:00" in tq:
+            elif "11:00" in tq or "11 am" in tq:
                 slot_number = 2
-            elif "11:30" in tq or "12:00" in tq or "12 pm" in tq:
+            elif "12:00" in tq or "12 pm" in tq:
                 slot_number = 3
-            elif "1:30" in tq or "2:00" in tq or "2 pm" in tq or "14:00" in tq:
+            elif "1:00" in tq or "1 pm" in tq or "13:00" in tq:
+                slot_number = 4  # Post-lunch Period 4
+            elif "2:00" in tq or "2 pm" in tq or "14:00" in tq:
                 slot_number = 4
-            elif "2:30" in tq or "3:00" in tq or "3 pm" in tq or "15:00" in tq:
+            elif "3:00" in tq or "3 pm" in tq or "15:00" in tq:
                 slot_number = 5
-            elif "3:30" in tq or "4:00" in tq or "4 pm" in tq or "16:00" in tq:
+            elif "4:00" in tq or "4 pm" in tq or "16:00" in tq:
                 slot_number = 6
+            elif "5:00" in tq or "5 pm" in tq or "17:00" in tq:
+                slot_number = 7
             else:
-                slot_number = 4  # Default to Period 4 (01:30 - 02:30 PM)
+                slot_number = 4  # Default to Period 4 (02:00 - 03:00 PM)
 
-        slot_number = slot_number or 4
-        start_t, end_t, slot_lbl = SLOT_TIMINGS.get(slot_number, ("01:30 PM", "02:30 PM", "Period 4"))
+        slot_number = 4 if slot_number is None else slot_number
+        start_t, end_t, slot_lbl = SLOT_TIMINGS.get(slot_number, ("02:00 PM", "03:00 PM", "Period 4"))
 
-        # Find busy faculty in this slot
+        # 1. Identify all faculty members who have known timetable coverage in published schedules
+        all_tt_faculty_records = db.query(TimetableEntry.faculty_name).distinct().all()
+        known_tt_faculty_names = set(r[0] for r in all_tt_faculty_records if r and r[0])
+
+        # 2. Find busy faculty in this slot
         busy_entries = db.query(TimetableEntry).filter(
             TimetableEntry.day == resolved_day,
             TimetableEntry.slot_number == slot_number
@@ -467,14 +480,30 @@ class TimetableService:
 
         busy_faculty_names = set(e.faculty_name for e in busy_entries if e.faculty_name)
 
-        # All department faculty
+        # 3. Query all non-demo faculty
         all_faculty = db.query(FacultyProfile).filter(FacultyProfile.is_demo == False).all()
 
         free_faculty = []
         busy_faculty = []
+        unknown_coverage_faculty = []
 
         for f in all_faculty:
-            # Check if this faculty is busy in this slot
+            # Check if faculty has known timetable coverage
+            has_coverage = any(
+                f.name.lower() in kf.lower() or kf.lower() in f.name.lower()
+                for kf in known_tt_faculty_names
+            )
+
+            if not has_coverage:
+                unknown_coverage_faculty.append({
+                    "name": f.name,
+                    "designation": f.designation,
+                    "department": f.department,
+                    "status": "Schedule not covered in currently published master timetables."
+                })
+                continue
+
+            # Check if busy in this slot
             is_busy = any(f.name.lower() in bf.lower() or bf.lower() in f.name.lower() for bf in busy_faculty_names)
             item = {
                 "name": f.name,
@@ -483,7 +512,6 @@ class TimetableService:
                 "office": f.office_location,
             }
             if is_busy:
-                # Find which class they are teaching
                 entry = next((e for e in busy_entries if f.name.lower() in e.faculty_name.lower()), None)
                 if entry:
                     item["teaching"] = {
@@ -494,6 +522,7 @@ class TimetableService:
                     }
                 busy_faculty.append(item)
             else:
+                item["status"] = "According to the published timetable, no class is listed for this faculty member during this period."
                 free_faculty.append(item)
 
         ist_now = self.get_current_ist_time().strftime("%Y-%m-%d %H:%M:%S IST")
@@ -505,15 +534,17 @@ class TimetableService:
             "slot_label": slot_lbl,
             "free_faculty_count": len(free_faculty),
             "busy_faculty_count": len(busy_faculty),
+            "unknown_coverage_count": len(unknown_coverage_faculty),
             "free_faculty": free_faculty,
             "busy_faculty": busy_faculty,
+            "unknown_coverage_faculty": unknown_coverage_faculty,
             "timezone": "Asia/Kolkata",
             "query_timestamp": ist_now,
             "disclaimer": (
-                "Note: Faculty availability is derived from published master teaching timetables (Asia/Kolkata). "
+                "Note: Faculty availability is derived strictly from published master teaching timetables (Asia/Kolkata). "
                 "Faculty without scheduled classes may still be engaged in departmental meetings, research, "
-                "administrative duties, examination coordination, or student mentoring. "
-                "Please verify urgent meetings directly via institutional email or during designated office hours."
+                "administrative duties, examination coordination, laboratory guidance, or student mentoring. "
+                "Timetable data indicates no scheduled class, but unscheduled departmental duties or leave cannot be confirmed."
             )
         }
 

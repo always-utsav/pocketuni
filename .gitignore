@@ -52,6 +52,13 @@ test_pocketuni.db
 storage/*
 !storage/**/.gitkeep
 
+# Confidential institutional records and marks
+*marks*.pdf
+*marks*.xlsx
+*marks*.csv
+*internal_marks*
+*confidential*
+
 # IDE & OS
 .vscode/
 .idea/

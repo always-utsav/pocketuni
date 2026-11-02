@@ -1,166 +1,166 @@
-# PocketUni — AI-Powered University Technology Platform for MITS Gwalior
-
-An enterprise full-stack platform built for **Madhav Institute of Technology & Science (MITS), Gwalior**, featuring an interactive React 18 frontend and a modular Python / FastAPI / PostgreSQL backend.
-
----
-
-## 🎨 Refined Visual Identity & Design System
-
-PocketUni implements an institutional design system balancing academic authority with a modern SaaS feel:
-
-- **Ink Navy** (`#202C39`): Primary typography, active states, deep structural headers.
-- **Slate Blue** (`#536B7A`): Secondary elements, subtle borders, metadata tags.
-- **Muted Terracotta** (`#B56F4A`): Accent highlights, active tabs, primary actions.
-- **Warm Stone** (`#E8E2D8`): Muted backgrounds, secondary button borders, dividing rules.
-- **Paper** (`#F7F6F2`): Application background, card surfaces, canvas.
-- **Sage** (`#668477`): Success badges, verified faculty indicators, approval status.
+# PocketUni — Conversational Academic AI Assistant & Knowledge Platform
+**Institution:** Madhav Institute of Technology & Science (MITS-DU), Gwalior  
+**Departments Supported:** Centre for Artificial Intelligence (CAI), Computer Science & Engineering (CSE), Internet of Things (IoT)  
+**Technology Stack:** React 18, TypeScript, Vite, Tailwind CSS, Python 3.11, FastAPI, PostgreSQL 18.6, SQLAlchemy 2, Alembic, Google Gemini SDK  
 
 ---
 
-## 🏛 Architecture Overview
+## 🏛 Visual Identity & Institutional Design System
 
-```
-Pocket-Uni/
-├── backend/                       # Python 3.11 + FastAPI + SQLAlchemy 2 + Alembic
-│   ├── alembic/                   # Database schema migrations (50 relational tables)
-│   ├── app/
-│   │   ├── api/v1/routes/         # 10 REST controllers (auth, students, faculty, etc.)
-│   │   ├── core/                  # Security, database sessions, permissions
-│   │   ├── models/                # SQLAlchemy ORM models
-│   │   ├── schemas/               # Pydantic v2 validation models
-│   │   └── services/              # Storage, multi-format extraction, audience filtering
-│   ├── scripts/                   # Database seed and reset utilities
-│   └── tests/                     # Automated unit and integration test suite
-├── src/                           # React 18 + TypeScript + Vite + Tailwind CSS
-│   ├── components/                # All existing screens + Super Admin Dashboard
-│   ├── context/                   # AppContext with real API synchronization
-│   └── services/apiClient.ts      # Centralized HTTP client with JWT auth
-├── data/
-│   ├── imports/                   # CSV templates for students, faculty, and results
-│   ├── institutional/             # Sample PDF, DOCX, and XLSX records
-│   └── templates/                 # 6 formal academic application templates
-├── storage/                       # Local file storage (documents, resumes, uploads)
-└── docs/                          # Comprehensive architecture and API documentation
-```
+PocketUni uses an authoritative institutional palette tailored for academic dignity and modern SaaS productivity:
+
+| Token | Name | Hex Code | Visual Application |
+|---|---|---|---|
+| `midnight` | Deep Midnight | `#14252B` | Primary headings, dark accents, brand badge |
+| `forest` | Forest Teal | `#176B68` | Secondary navigation, verified pills, icons |
+| `porcelain` | Porcelain | `#F5F3EE` | Clean content surfaces, canvas, cards |
+| `sand` | Warm Sand | `#E7DFD2` | Borders, subtle card dividers, neutral chips |
+| `copper` | Burnt Copper | `#B96D47` | High-emphasis CTAs, interactive highlights |
+| `sage` | Soft Sage | `#8A9B87` | Success badges, verified student indicators |
+| `charcoal` | Charcoal | `#273238` | Body typography, secondary metadata |
 
 ---
 
-## 🚀 Running PocketUni Locally (Windows PowerShell)
+## 🚀 Key Capabilities & Product Features
+
+### 1. Three-Account Institutional Sandbox
+Instant one-click sandbox environments for comprehensive pair testing without email exposure or credential friction:
+- **Student Sandbox:** B.Tech CAI / AIR student persona with full peer discovery, timetable lookup, syllabus queries, and formal application drafting.
+- **Faculty Sandbox:** Designated CAI Mentor (Dr. Mausam Chouksey) persona receiving formal student applications, approving/rejecting drafts, and requesting revisions in real-time.
+- **Super Administrator Sandbox:** Platform Architect & Administrator (`utsavkumawat05@gmail.com`) persona with live system metrics, knowledge ingestion, crawler triggers, and roster oversight.
+
+### 2. Conversational Institutional RAG & Progressive Streaming
+- **Server-Sent Events (SSE):** Progressive token streaming from Google Gemini (`gemini-2.5-flash`) via `/api/v1/chat/conversations/{id}/stream`.
+- **Grounded Source Citations:** AI answers cite official MITS documents with page numbers, document category, and relevance snippets.
+- **Rate-Limit Resilience:** Safe backoff and grounded institutional fallback if upstream free-tier API quotas are temporarily exhausted.
+- **Strict Isolation:** User conversations are isolated at the database level (`user_id == current_user.id`) and scoped on the frontend (`pocketuni_chats_${currentUser.id}`).
+
+### 3. Authoritative Timetable & Availability Intelligence
+- **Scanned Document Hours:** Exact period slots calibrated to official MITS timetables (July–Dec 2026):
+  - Period 1: 10:00 AM – 11:00 AM
+  - Period 2: 11:00 AM – 12:00 PM
+  - Period 3: 12:00 PM – 01:00 PM
+  - Lunch Break: 01:00 PM – 02:00 PM
+  - Period 4: 02:00 PM – 03:00 PM
+  - Period 5: 03:00 PM – 04:00 PM
+  - Period 6: 04:00 PM – 05:00 PM
+- **Zero Unsafe Defaults:** Queries without branch/semester context prompt for honest clarification rather than making silent assumptions.
+- **Known-Coverage Complement:** Faculty without published timetable schedules are marked as `unknown_coverage_faculty` rather than erroneously reported as free.
+
+### 4. Real-Time WebSocket Synchronization
+- Authenticated bidirectional WebSocket channel at `/api/v1/ws?token=...`
+- Dispatches live updates for application status transitions (`application_status_changed`), faculty profile updates, and institutional announcements.
+
+### 5. Multi-Department Faculty Directory & Enriched Profiles
+- Verified profiles for Dr. Shradha Dubey (CSE, Medical Image Processing & Pose Estimation), Dr. Aftab Ahmed Ansari (IoT, Wireless Sensor Networks), Prof. Ramnaresh Sharma (CSE), and all CAI, CSE, and IoT faculty members.
+- Dynamic department filtering (`All`, `CAI`, `CSE`, `IoT`).
+- Masked internal phone numbers protecting faculty privacy unless viewed by the profile owner or Super Admin.
+
+### 6. Formal Application Workflow & Outbox Security
+- AI-guided conversational letter drafting for Leaves, NOCs, Bonafide Certificates, and Venue Permissions.
+- State machine: `draft` ➔ `sent` ➔ `approved` / `rejected` / `revision_requested`.
+- Outbox inspection (`/api/v1/applications/outbox/queue`) restricted strictly to Super Administrators (403 for students and faculty).
+
+---
+
+## 🛠 Local Setup & Running Instructions (Windows 11)
 
 ### Prerequisites
 - **Node.js** (v18+) and **npm**
 - **Python** (3.11+)
-- **PostgreSQL** (installed locally on `localhost:5432`)
+- **PostgreSQL 18** (running locally on port 5432)
 
 ---
 
-### Step 1: Configure Environment
-
+### Step 1: Environment Configuration
 Copy `.env.example` to `.env`:
-
 ```powershell
 Copy-Item .env.example .env
 ```
-
-Open `.env` and set your local PostgreSQL password:
-
+Ensure your `.env` contains:
 ```env
-POSTGRES_SERVER=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=pocketuni
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_actual_postgres_password_here
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=pocketuni
+DB_USER=postgres
+DB_PASSWORD=your_actual_postgres_password
 SUPER_ADMIN_ALLOWLIST=["utsavkumawat05@gmail.com"]
+GEMINI_API_KEY=your_gemini_api_key
 ```
-
-*(If `POSTGRES_PASSWORD` is omitted, the backend automatically defaults to a local SQLite database for zero-configuration testing).*
 
 ---
 
-### Step 2: Initialize & Seed the Database
-
+### Step 2: Database Initialization & Migrations
 ```powershell
 # Activate backend virtual environment
 .\backend\.venv\Scripts\Activate.ps1
 
-# Run the seeding script
-python .\backend\scripts\seed.py
-```
+# Run database migrations to latest revision (d4a9ef182390)
+alembic -c backend/alembic.ini upgrade head
 
-This provisions:
-- Initial Super Admin account: `utsavkumawat05@gmail.com`
-- 22 official MITS CAI faculty records (including **Dr. Mausam Chouksey**, designated CAI faculty guide)
-- 4 synthetic demo students (`@example.invalid`)
-- Academic calendar for 2026–27
-- Sample timetables, examination datesheets, and confidential marks
+# Run seed script to populate verified MITS institutional data
+python backend/scripts/seed.py
+```
 
 ---
 
-### Step 3: Start the Backend API Server
-
-In a PowerShell terminal:
-
+### Step 3: Run the Backend Server
 ```powershell
-.\backend\.venv\Scripts\Activate.ps1
-python -m uvicorn backend.app.main:app --reload --port 8000 --host 127.0.0.1
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-
-- Backend runs at: `http://127.0.0.1:8000`
-- Interactive Swagger docs: `http://127.0.0.1:8000/docs`
+The FastAPI backend runs at `http://localhost:8000`. Swagger documentation is available at `http://localhost:8000/docs`.
 
 ---
 
-### Step 4: Start the Frontend Application
-
-In a separate PowerShell terminal:
-
+### Step 4: Run the Frontend Application
+In a separate terminal:
 ```powershell
+npm install
 npm run dev
 ```
-
-- Frontend runs at: `http://localhost:5173`
+The Vite development server runs at `http://localhost:5173` (or `http://localhost:3000`).
 
 ---
 
-### Step 5: Run Automated Tests & Builds
-
+### Step 5: Run Automated Tests
 ```powershell
-# Run backend test suite (12 tests)
-.\backend\.venv\Scripts\Activate.ps1
-python -m pytest backend\tests\test_backend.py -v
+# Backend pytest test suite
+$env:PYTHONPATH="."; .\backend\.venv\Scripts\pytest backend\tests\test_master_transformation.py -v
 
-# Run frontend production build
+# Frontend production build check
 npm run build
 ```
 
 ---
 
-## 👤 User Personas & Testing Accounts
+## 📂 Project Architecture
 
-| Persona / Role | Email | Access Scope |
-|---|---|---|
-| **Super Admin** | `utsavkumawat05@gmail.com` | Complete access to the 15-section Super Admin governance portal. |
-| **Faculty (Mentor)** | `mchouksey@mitsgwalior.in` | **Dr. Mausam Chouksey** (CAI Assistant Professor & Lead Guide). Can review and approve/reject applications. |
-| **Faculty (HOD)** | `manish.dixit@mitsgwalior.in` | Verified faculty directory and application review. |
-| **Student (AI Cohort)** | `meera.patel@example.invalid` | 4th-Year AI Research student. Application agent, own profile, and results. |
-| **Student (CSE Cohort)** | `aarav.sharma@example.invalid` | 2nd-Year CSE student. Class timetables and academic calendar. |
+```
+Pocket-Uni/
+├── backend/                       # Python 3.11 FastAPI backend
+│   ├── alembic/                   # Database schema migrations (Alembic)
+│   ├── app/
+│   │   ├── api/v1/routes/         # REST & WebSocket route controllers
+│   │   ├── core/                  # Security, database configuration, permissions
+│   │   ├── models/                # SQLAlchemy database models
+│   │   ├── schemas/               # Pydantic v2 schemas
+│   │   └── services/              # RAG engine, intent router, timetable, realtime WS
+│   ├── scripts/                   # Seed & enrichment scripts
+│   └── tests/                     # Automated test suites
+├── src/                           # React 18 TypeScript Vite frontend
+│   ├── components/                # Application views, modals, cards, navigation
+│   ├── context/                   # AppContext (user-scoped state, WebSocket listener)
+│   ├── services/                  # apiClient (REST, SSE streaming), realtimeClient (WS)
+│   └── types/                     # TypeScript shared interfaces
+├── data/                          # Authoritative institutional source files
+├── storage/                       # Local filesystem storage (resumes, avatars, documents)
+└── docs/                          # Architectural documentation & audit reports
+```
 
 ---
 
-## 📚 Documentation Index
-
-- [API Reference](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/API_REFERENCE.md)
-- [Product Transformation Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/PRODUCT_TRANSFORMATION_REPORT.md)
-- [CAI DOCX Ingestion Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/CAI_INGESTION_REPORT.md)
-- [Timetable Intelligence Specification](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/TIMETABLE_INTELLIGENCE.md)
-- [Intent Routing Architecture](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/INTENT_ROUTING_ARCHITECTURE.md)
-- [Application Workflow & Outbox Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/APPLICATION_WORKFLOW_REPORT.md)
-- [Avatar Privacy & Data Hygiene Audit](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/AVATAR_PRIVACY_AUDIT.md)
-- [Repository & Architecture Audit](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/REPOSITORY_AUDIT.md)
-- [Database Schema Specification](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/DATABASE_SCHEMA.md)
-- [Document Extraction Pipeline](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/DOCUMENT_EXTRACTION.md)
-- [Super Admin Operational Guide](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/SUPER_ADMIN_GUIDE.md)
-- [Data Import & Ingestion Guide](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/DATA_IMPORT_GUIDE.md)
-- [Manual Setup Checklist](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/MANUAL_SETUP_CHECKLIST.md)
-- [Module 1 Completion Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/MODULE_1_COMPLETION_REPORT.md)
-- [Module 2 Handoff & Prerequisites](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/MODULE_2_HANDOFF.md)
+## 🔒 Confidentiality & Security Notice
+In compliance with MITS academic guidelines:
+- Confidential student marks lists and internal assessments are permanently excluded from AI retrieval indexes (`RESTRICTED_CONFIDENTIAL`).
+- Outbox inspection is strictly role-gated to Super Administrators.
+- Voluntary avatar uploads undergo extension validation, 2MB size enforcement, and PIL image re-encoding.

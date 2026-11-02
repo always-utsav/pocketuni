@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.core.config import settings
@@ -89,9 +89,14 @@ def get_demo_accounts():
 
 
 @router.post("/dev-login", response_model=Token)
-def local_dev_login(payload: LocalDevLoginRequest, db: Session = Depends(get_db)):
+@router.get("/dev-login", response_model=Token)
+def local_dev_login(
+    payload: Optional[LocalDevLoginRequest] = None,
+    email: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
     """
-    Controlled local development login.
+    Controlled local development login supporting both POST and GET.
     Enforces super admin allowlist and assigns verified roles.
     Disabled in production configuration.
     """
@@ -101,14 +106,19 @@ def local_dev_login(payload: LocalDevLoginRequest, db: Session = Depends(get_db)
             detail="Development login mode is disabled in this environment."
         )
 
-    email = payload.email.strip().lower()
-    
+    target_email = (payload.email if payload else email or "").strip().lower()
+    if not target_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address must be provided in request body or query parameter."
+        )
+
     # Query user from DB
-    user = db.query(User).filter(User.email == email, User.is_deleted == False).first()
+    user = db.query(User).filter(User.email == target_email, User.is_deleted == False).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with email '{email}' is not pre-registered in PocketUni database."
+            detail=f"Account with email '{target_email}' is not pre-registered in PocketUni database."
         )
 
     # Determine highest role
@@ -120,7 +130,7 @@ def local_dev_login(payload: LocalDevLoginRequest, db: Session = Depends(get_db)
         primary_role = "FACULTY"
 
     # Super admin allowlist check
-    if primary_role == "SUPER_ADMIN" and email not in [e.lower() for e in settings.SUPER_ADMIN_ALLOWLIST]:
+    if primary_role == "SUPER_ADMIN" and target_email not in [e.lower() for e in settings.SUPER_ADMIN_ALLOWLIST]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email is not in the configured Super Admin allowlist."
@@ -154,6 +164,86 @@ def local_dev_login(payload: LocalDevLoginRequest, db: Session = Depends(get_db)
         email=user.email,
         full_name=user.full_name,
         picture_url=user.picture_url
+    )
+
+
+class SandboxLoginRequest(BaseModel):
+    role: str  # SUPER_ADMIN, STUDENT, FACULTY
+
+
+@router.post("/sandbox-login", response_model=Token)
+@router.get("/sandbox-login", response_model=Token)
+def sandbox_login(
+    payload: Optional[SandboxLoginRequest] = None,
+    role: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticates into one of the three designated sandbox identities:
+    - SUPER_ADMIN: Institutional Super Administrator
+    - STUDENT: B.Tech AIR Student
+    - FACULTY: CAI Faculty Member & Mentor
+    Uses stable pre-existing IDs without creating duplicate accounts.
+    """
+    req_role = (payload.role if payload else role or "STUDENT").strip().upper()
+
+    if req_role in ["SUPER_ADMIN", "ADMIN"]:
+        email = "utsavkumawat05@gmail.com"
+        target_role = "SUPER_ADMIN"
+    elif req_role in ["FACULTY", "MENTOR"]:
+        email = "dr.mausam.chouksey@mitsgwalior.in"
+        target_role = "FACULTY"
+    elif req_role in ["STUDENT"]:
+        email = "aarav.sharma@example.invalid"
+        target_role = "STUDENT"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid sandbox role '{req_role}'. Supported roles: SUPER_ADMIN, FACULTY, STUDENT."
+        )
+
+    user = db.query(User).filter(User.email == email, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"Sandbox account for role '{target_role}' not found.")
+
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor_email=user.email,
+        actor_role=target_role,
+        action="SANDBOX_LOGIN",
+        target_entity="User",
+        target_id=user.id,
+        change_summary=f"Signed in as {target_role} Sandbox identity.",
+        actor_user_id=user.id
+    )
+
+    access_token = create_access_token(
+        subject=user.id,
+        role=target_role,
+        email=user.email
+    )
+
+    return Token(
+        access_token=access_token,
+        role=target_role,
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        picture_url=user.picture_url,
+        user={
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": target_role,
+            "picture_url": user.picture_url,
+            "branch": user.branch,
+            "department_name": user.department_name,
+            "designation": user.designation,
+            "year_of_study": user.year_of_study
+        }
     )
 
 
@@ -224,6 +314,42 @@ def get_google_oauth_url(role: str = "STUDENT"):
 class GoogleCallbackRequest(BaseModel):
     code: str
     state: str
+
+
+@router.get("/google/callback")
+async def google_oauth_callback_get(
+    request: Request,
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Handles browser redirects from Google OAuth consent screen (GET request).
+    Exchanges code for tokens and redirects cleanly to frontend with authorization token.
+    """
+    from fastapi.responses import RedirectResponse
+    from backend.app.services.oauth_service import google_oauth_service
+    frontend_url = settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else "http://localhost:3000"
+
+    if not code or not state:
+        return RedirectResponse(url=f"{frontend_url}/?error=Missing+OAuth+code+or+state")
+
+    try:
+        ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        res = await google_oauth_service.handle_callback(
+            db=db,
+            code=code,
+            state=state,
+            ip_address=ip,
+            user_agent=user_agent
+        )
+        token = res.get("access_token")
+        role = res.get("role", "STUDENT")
+        return RedirectResponse(url=f"{frontend_url}/?token={token}&role={role}")
+    except Exception as e:
+        logger.error(f"Google OAuth callback GET failed: {e}")
+        return RedirectResponse(url=f"{frontend_url}/?error={str(e)}")
 
 
 @router.post("/google/callback")

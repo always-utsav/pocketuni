@@ -32,6 +32,9 @@ class FacultyProfile(Base, CommonMixin):
     areas_of_expertise = Column(JSON, default=list, nullable=False)
     projects_json = Column(JSON, default=list, nullable=False)
     publications_json = Column(JSON, default=list, nullable=False)
+    professional_highlights_json = Column(JSON, default=list, nullable=False)
+    external_links_json = Column(JSON, default=dict, nullable=False)
+    phone_internal = Column(String(50), nullable=True)
     verification_status = Column(
         String(50), default="VERIFIED_OFFICIAL_SOURCE", nullable=False
     )  # VERIFIED_OFFICIAL_SOURCE, NEEDS_REVIEW, SOURCE_UNAVAILABLE, HISTORICAL_INFORMATION

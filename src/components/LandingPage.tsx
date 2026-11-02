@@ -21,11 +21,12 @@ import { useApp } from '../context/AppContext';
 import { apiClient } from '../services/apiClient';
 
 export const LandingPage: React.FC = () => {
-  const { loginAs, authError, clearAuthError, setCurrentUser, setActiveView } = useApp();
+  const { loginAs, sandboxLogin, authError, clearAuthError, setCurrentUser, setActiveView } = useApp();
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'FACULTY' | 'SUPER_ADMIN' | null>(null);
   const [isLoadingOAuthUrl, setIsLoadingOAuthUrl] = useState(false);
+  const [isSandboxLoading, setIsSandboxLoading] = useState(false);
   const [oauthVerifying, setOauthVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showDevBypass, setShowDevBypass] = useState(false);
@@ -459,45 +460,107 @@ export const LandingPage: React.FC = () => {
               </div>
             )}
 
-            {/* Developer Testing Toggle (Disabled in production configuration) */}
-            <div className="pt-4 mt-4 border-t border-stone-warm">
+            {/* Three-Account Sandbox Testing */}
+            <div className="pt-4 mt-4 border-t border-sand">
               <button
                 onClick={() => setShowDevBypass(!showDevBypass)}
-                className="w-full text-center text-[11px] font-medium text-slate-blue/60 hover:text-slate-blue flex items-center justify-center gap-1.5"
+                className="w-full text-center text-xs font-semibold text-forest hover:text-midnight flex items-center justify-center gap-1.5 py-1"
               >
-                <span>Local Development Sandbox Options</span>
-                <span className="text-[9px] bg-stone-warm px-1.5 py-0.5 rounded text-ink-navy font-mono">DEV ONLY</span>
+                <span>Institutional Sandbox Environment (One-Click Testing)</span>
+                <span className="text-[10px] bg-sand px-2 py-0.5 rounded font-mono font-bold text-midnight">SANDBOX</span>
               </button>
 
               {showDevBypass && (
-                <div className="mt-3 p-3 rounded-xl bg-stone-warm/30 border border-stone-warm space-y-2 text-xs">
-                  <p className="text-[10px] font-semibold text-slate-blue uppercase">
-                    Direct Pre-Registered Test Sign-In:
+                <div className="mt-3 p-3 rounded-2xl bg-sand/30 border border-sand space-y-2.5">
+                  <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">
+                    Select Test Sandbox Persona:
                   </p>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
+                    {/* Persona 1: Student Sandbox */}
                     <button
-                      onClick={() => handleDevBypassLogin('guptamahi0207@gmail.com')}
-                      className="w-full text-left p-1.5 rounded hover:bg-stone-warm text-[11px] font-medium text-ink-navy truncate"
+                      onClick={async () => {
+                        setIsSandboxLoading(true);
+                        setErrorMessage(null);
+                        try {
+                          const ok = await sandboxLogin('STUDENT');
+                          if (ok) setIsLoginModalOpen(false);
+                        } catch (err: any) {
+                          setErrorMessage(err.message || 'Student sandbox login failed.');
+                        } finally {
+                          setIsSandboxLoading(false);
+                        }
+                      }}
+                      disabled={isSandboxLoading}
+                      className="w-full p-2.5 rounded-xl bg-porcelain border border-sand hover:border-forest flex items-center gap-3 transition-all text-left shadow-sm hover:shadow group disabled:opacity-50"
                     >
-                      👑 Super Admin (guptamahi0207@gmail.com)
+                      <div className="w-10 h-10 rounded-lg bg-sage/20 border border-sage/40 flex items-center justify-center shrink-0 text-forest font-heading font-black text-xs">
+                        ST
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-midnight group-hover:text-forest">Student Sandbox</p>
+                          <span className="text-[10px] bg-sage/20 text-forest font-semibold px-2 py-0.5 rounded-full">B.Tech CAI</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal/70 truncate">Academic query, syllabus, applications & peer discovery</p>
+                      </div>
                     </button>
+
+                    {/* Persona 2: Faculty Sandbox */}
                     <button
-                      onClick={() => handleDevBypassLogin('utsavkumawat05@gmail.com')}
-                      className="w-full text-left p-1.5 rounded hover:bg-stone-warm text-[11px] font-medium text-ink-navy truncate"
+                      onClick={async () => {
+                        setIsSandboxLoading(true);
+                        setErrorMessage(null);
+                        try {
+                          const ok = await sandboxLogin('FACULTY');
+                          if (ok) setIsLoginModalOpen(false);
+                        } catch (err: any) {
+                          setErrorMessage(err.message || 'Faculty sandbox login failed.');
+                        } finally {
+                          setIsSandboxLoading(false);
+                        }
+                      }}
+                      disabled={isSandboxLoading}
+                      className="w-full p-2.5 rounded-xl bg-porcelain border border-sand hover:border-forest flex items-center gap-3 transition-all text-left shadow-sm hover:shadow group disabled:opacity-50"
                     >
-                      👑 Super Admin (utsavkumawat05@gmail.com)
+                      <div className="w-10 h-10 rounded-lg bg-forest/15 border border-forest/30 flex items-center justify-center shrink-0 text-forest font-heading font-black text-xs">
+                        FC
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-midnight group-hover:text-forest">Faculty Sandbox</p>
+                          <span className="text-[10px] bg-forest/15 text-forest font-semibold px-2 py-0.5 rounded-full">Mentor & Reviewer</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal/70 truncate">Incoming formal applications review & approvals</p>
+                      </div>
                     </button>
+
+                    {/* Persona 3: Super Admin Sandbox */}
                     <button
-                      onClick={() => handleDevBypassLogin('dr.mausam.chouksey@mitsgwalior.in')}
-                      className="w-full text-left p-1.5 rounded hover:bg-stone-warm text-[11px] font-medium text-ink-navy truncate"
+                      onClick={async () => {
+                        setIsSandboxLoading(true);
+                        setErrorMessage(null);
+                        try {
+                          const ok = await sandboxLogin('SUPER_ADMIN');
+                          if (ok) setIsLoginModalOpen(false);
+                        } catch (err: any) {
+                          setErrorMessage(err.message || 'Super admin sandbox login failed.');
+                        } finally {
+                          setIsSandboxLoading(false);
+                        }
+                      }}
+                      disabled={isSandboxLoading}
+                      className="w-full p-2.5 rounded-xl bg-porcelain border border-sand hover:border-copper flex items-center gap-3 transition-all text-left shadow-sm hover:shadow group disabled:opacity-50"
                     >
-                      👨‍🏫 Faculty (dr.mausam.chouksey@mitsgwalior.in)
-                    </button>
-                    <button
-                      onClick={() => handleDevBypassLogin('demo.aarav.sharma@example.invalid')}
-                      className="w-full text-left p-1.5 rounded hover:bg-stone-warm text-[11px] font-medium text-ink-navy truncate"
-                    >
-                      🎓 Student Demo (demo.aarav.sharma@example.invalid)
+                      <div className="w-10 h-10 rounded-lg bg-copper/15 border border-copper/30 flex items-center justify-center shrink-0 text-copper font-heading font-black text-xs">
+                        SA
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-midnight group-hover:text-copper">Super Admin Sandbox</p>
+                          <span className="text-[10px] bg-copper/15 text-copper font-semibold px-2 py-0.5 rounded-full">Operations</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal/70 truncate">Institutional RAG, system health, sync & user oversight</p>
+                      </div>
                     </button>
                   </div>
                 </div>
