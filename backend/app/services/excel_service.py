@@ -804,9 +804,11 @@ class ExcelService:
             cell.alignment = Alignment(horizontal="center", vertical="center")
 
         if entity_type == "STUDENT":
-            students = db.query(StudentProfile).join(User).filter(User.is_demo == True).limit(10).all()
+            students = db.query(StudentProfile).join(User).filter(
+                StudentProfile.data_source == "synthetic_demo"
+            ).order_by(StudentProfile.enrolment_number.asc()).limit(10).all()
             if len(students) < 10:
-                students = db.query(StudentProfile).join(User).limit(10).all()
+                students = db.query(StudentProfile).join(User).filter(User.is_demo == True).limit(10).all()
             for sp in students[:10]:
                 u = sp.user
                 skills_list = [s.skill_name for s in sp.skills] if sp.skills else []
@@ -845,7 +847,11 @@ class ExcelService:
                 ]
                 ws.append(row)
         else:
-            faculty = db.query(FacultyProfile).join(User, isouter=True).all()
+            faculty = db.query(FacultyProfile).join(User, isouter=True).filter(
+                (FacultyProfile.is_demo == True) | (FacultyProfile.data_source == "synthetic_demo")
+            ).all()
+            if not faculty:
+                faculty = db.query(FacultyProfile).join(User, isouter=True).all()
             for fp in faculty:
                 u = fp.user
                 interests_list = [i.area for i in fp.research_interests] if fp.research_interests else []

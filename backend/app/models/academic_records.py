@@ -18,6 +18,10 @@ class TimetableEntry(Base, CommonMixin):
     programme = Column(String(100), nullable=True)
     branch = Column(String(100), nullable=True)
     semester = Column(String(20), nullable=True)
+    section = Column(String(20), nullable=True, default="A")
+    batch_group = Column(String(20), nullable=True, default="All")
+    slot_number = Column(Integer, nullable=True)
+    is_lab = Column(Integer, default=0, nullable=False)
     academic_year = Column(String(50), nullable=True)
     effective_period = Column(String(100), nullable=True)
 

@@ -45,7 +45,7 @@ def test_alembic_migration_tables():
         res = conn.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")).scalar()
         assert res >= 50
         alembic_rev = conn.execute(text("SELECT version_num FROM alembic_version;")).scalar()
-        assert alembic_rev in ["1e5131ff1c7b", "b09aba9ea876", "f45e46a94da4"]
+        assert alembic_rev in ["1e5131ff1c7b", "b09aba9ea876", "f45e46a94da4", "c398dfa91204"]
 
 
 # 2. System Health Endpoint

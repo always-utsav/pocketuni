@@ -12,6 +12,7 @@ from backend.app.models.student import StudentProfile
 from backend.app.models.document import InstitutionalDocument, DocumentChunk, ExtractedDocumentContent, ExtractedTable, DocumentAudience
 from backend.app.services.gemini_service import gemini_service
 from backend.app.services.chunking_service import chunking_engine
+from backend.app.services.intent_router import intent_router
 
 logger = logging.getLogger("pocketuni.rag")
 
@@ -240,8 +241,17 @@ class RAGService:
         limit: int = 5
     ) -> Dict[str, Any]:
         """
-        Executes end-to-end RAG synthesis: retrieves relevant chunks and calls Gemini.
+        Executes end-to-end intent-routed synthesis: evaluates deterministic academic
+        intents (timetables, availability, coordinators, labs) before RAG fallback.
         """
+        # 1. Deterministic intent classification
+        intent = intent_router.classify_intent(query)
+        if intent != "GENERAL_INSTITUTIONAL":
+            specialized_resp = intent_router.handle_intent(db, intent, query, user, conversation_history)
+            if specialized_resp:
+                return specialized_resp
+
+        # 2. RAG Synthesis for Institutional Knowledge
         retrieved_sources = self.search_knowledge(db, query, user, limit=limit)
 
         # Build context from sources

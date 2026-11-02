@@ -15,6 +15,12 @@ from backend.app.models.academic import (
     AcademicYear,
     Semester,
     Batch,
+    Laboratory,
+    DepartmentProgramme,
+    BoSMember,
+    DepartmentEvent,
+    ClassCoordinator,
+    ConflictReview,
 )
 from backend.app.models.student import (
     Skill,
@@ -38,6 +44,7 @@ from backend.app.models.application import (
     ApplicationStatusHistory,
     ApplicationShare,
     ApplicationDocument,
+    ApplicationOutbox,
 )
 from backend.app.models.communication import (
     Conversation,
@@ -95,6 +102,12 @@ __all__ = [
     "AcademicYear",
     "Semester",
     "Batch",
+    "Laboratory",
+    "DepartmentProgramme",
+    "BoSMember",
+    "DepartmentEvent",
+    "ClassCoordinator",
+    "ConflictReview",
     "Skill",
     "StudentProfile",
     "StudentSkill",
@@ -112,6 +125,7 @@ __all__ = [
     "ApplicationStatusHistory",
     "ApplicationShare",
     "ApplicationDocument",
+    "ApplicationOutbox",
     "Conversation",
     "Message",
     "Notification",

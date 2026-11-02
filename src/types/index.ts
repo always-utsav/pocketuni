@@ -203,6 +203,10 @@ export interface Message {
   createdAt: string;
   sources?: MessageSource[];
   profileCards?: StudentMatchCard[];
+  widget?: {
+    type: string;
+    data: any;
+  };
   applicationDraftId?: string;
   feedback?: 1 | -1 | null;
   isIncomplete?: boolean;

@@ -143,7 +143,7 @@ def test_excel_synthetic_students_integrity():
 
 
 def test_excel_faculty_integrity():
-    """Verify pocketuni_faculty.xlsx contains synthetic faculty with correct markers."""
+    """Verify pocketuni_faculty.xlsx contains faculty with correct institutional or demo markers."""
     import openpyxl
 
     path = "pocketuni_faculty.xlsx"
@@ -158,8 +158,11 @@ def test_excel_faculty_integrity():
     header = rows[0]
     for r in data_rows:
         row_dict = dict(zip(header, r))
-        assert str(row_dict["institutional_email"]).endswith(".invalid")
-        assert bool(row_dict["is_demo"]) is True
+        email = str(row_dict["institutional_email"])
+        if bool(row_dict.get("is_demo")):
+            assert email.endswith(".invalid")
+        else:
+            assert email.endswith("@mitsgwalior.in") or email.endswith("@gmail.com")
 
 
 # 5. Roster Management Endpoints

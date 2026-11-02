@@ -199,6 +199,7 @@ def send_message(
             "role": assistant_msg.role,
             "content": assistant_msg.content,
             "sources": assistant_msg.sources,
+            "widget": rag_result.get("widget"),
             "createdAt": assistant_msg.created_at.isoformat()
         }
     }

@@ -150,6 +150,12 @@ npm run build
 ## 📚 Documentation Index
 
 - [API Reference](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/API_REFERENCE.md)
+- [Product Transformation Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/PRODUCT_TRANSFORMATION_REPORT.md)
+- [CAI DOCX Ingestion Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/CAI_INGESTION_REPORT.md)
+- [Timetable Intelligence Specification](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/TIMETABLE_INTELLIGENCE.md)
+- [Intent Routing Architecture](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/INTENT_ROUTING_ARCHITECTURE.md)
+- [Application Workflow & Outbox Report](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/APPLICATION_WORKFLOW_REPORT.md)
+- [Avatar Privacy & Data Hygiene Audit](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/AVATAR_PRIVACY_AUDIT.md)
 - [Repository & Architecture Audit](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/REPOSITORY_AUDIT.md)
 - [Database Schema Specification](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/DATABASE_SCHEMA.md)
 - [Document Extraction Pipeline](file:///C:/Users/utsav/Desktop/Pocket-Uni/docs/DOCUMENT_EXTRACTION.md)

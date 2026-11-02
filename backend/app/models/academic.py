@@ -75,3 +75,86 @@ class Batch(Base, CommonMixin):
     branch_id = Column(String(36), ForeignKey("branches.id", ondelete="CASCADE"), nullable=False, index=True)
     graduation_year = Column(Integer, nullable=False, index=True)
     name = Column(String(100), nullable=False)
+
+
+class Laboratory(Base, CommonMixin):
+    __tablename__ = "laboratories"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    department_id = Column(String(36), ForeignKey("departments.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    code = Column(String(50), nullable=True, index=True)
+    location = Column(String(100), nullable=True)
+    capacity = Column(Integer, default=30, nullable=False)
+    hardware_specs = Column(Text, nullable=True)
+    software_specs = Column(Text, nullable=True)
+    faculty_in_charge = Column(String(255), nullable=True)
+    staff_in_charge = Column(String(255), nullable=True)
+    research_focus = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+
+
+class DepartmentProgramme(Base, CommonMixin):
+    __tablename__ = "department_programmes"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    department_id = Column(String(36), ForeignKey("departments.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    degree = Column(String(50), nullable=False)  # B.Tech, M.Tech, Ph.D.
+    intake = Column(Integer, default=60, nullable=False)
+    duration_years = Column(Integer, default=4, nullable=False)
+    curriculum_url = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+
+
+class BoSMember(Base, CommonMixin):
+    __tablename__ = "bos_members"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    department_id = Column(String(36), ForeignKey("departments.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    designation = Column(String(255), nullable=True)
+    affiliation = Column(String(255), nullable=True)
+    category = Column(String(100), nullable=False)  # Chairman, Internal, External, Industry, Alumni
+    email = Column(String(255), nullable=True)
+
+
+class DepartmentEvent(Base, CommonMixin):
+    __tablename__ = "department_events"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    department_id = Column(String(36), ForeignKey("departments.id", ondelete="CASCADE"), nullable=True, index=True)
+    title = Column(String(255), nullable=False, index=True)
+    event_type = Column(String(100), nullable=False)  # Workshop, FDP, Expert Talk, Seminar
+    date_start = Column(String(50), nullable=True)
+    date_end = Column(String(50), nullable=True)
+    coordinator = Column(String(255), nullable=True)
+    speaker = Column(String(255), nullable=True)
+    brochure_url = Column(String(500), nullable=True)
+    report_url = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+
+
+class ClassCoordinator(Base, CommonMixin):
+    __tablename__ = "class_coordinators"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    year = Column(String(50), nullable=False, index=True)  # I Year, II Year, III Year, IV Year
+    branch = Column(String(100), nullable=False, index=True)  # AIR, AIML, AIDS, AI
+    faculty_name = Column(String(255), nullable=False, index=True)
+    contact_number = Column(String(50), nullable=True)
+    institutional_email = Column(String(255), nullable=True)
+    academic_session = Column(String(50), default="2026-2027", nullable=False)
+
+
+class ConflictReview(Base, CommonMixin):
+    __tablename__ = "conflict_reviews"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    source_document = Column(String(255), nullable=False)
+    field_name = Column(String(100), nullable=False)
+    source_content = Column(Text, nullable=False)
+    conflict_description = Column(Text, nullable=False)
+    status = Column(String(50), default="PENDING", nullable=False)  # PENDING, RESOLVED
+    resolution_notes = Column(Text, nullable=True)
+

@@ -15,7 +15,13 @@ import {
   Building,
   GraduationCap,
   Calendar,
-  X
+  X,
+  Clock,
+  CheckCircle,
+  MapPin,
+  Mail,
+  Phone,
+  BookOpen
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Message, MessageSource, StudentMatchCard } from '../types';
@@ -91,23 +97,31 @@ export const ChatView: React.FC = () => {
 
   const firstName = currentUser?.fullName?.split(' ')[0] || 'there';
 
-  // Sample prompt chips for empty state
+  // Institutional academic prompt chips for empty state
   const quickPrompts = [
     {
-      icon: <Building className="w-3.5 h-3.5 text-brand-secondary" />,
-      text: 'When is the next placement drive for CSE and what are top packages?'
-    },
-    {
-      icon: <Users className="w-3.5 h-3.5 text-brand-accent" />,
-      text: 'Suggest students interested in AI and open for hackathons'
-    },
-    {
       icon: <Calendar className="w-3.5 h-3.5 text-brand-secondary" />,
-      text: 'What is the attendance policy and medical leave procedure?'
+      text: 'What is my timetable tomorrow?'
+    },
+    {
+      icon: <Clock className="w-3.5 h-3.5 text-brand-accent" />,
+      text: 'Which teacher has no scheduled class at 2 PM on Tuesday?'
+    },
+    {
+      icon: <Users className="w-3.5 h-3.5 text-brand-secondary" />,
+      text: 'Who is the class coordinator for 2nd year AIR?'
+    },
+    {
+      icon: <Building className="w-3.5 h-3.5 text-brand-accent" />,
+      text: 'Which laboratories are available in the Centre for AI?'
+    },
+    {
+      icon: <BookOpen className="w-3.5 h-3.5 text-brand-secondary" />,
+      text: 'Explain the current syllabus for my semester'
     },
     {
       icon: <GraduationCap className="w-3.5 h-3.5 text-brand-accent" />,
-      text: 'Who is Dr. Manish Dixit and what are his consultation hours?'
+      text: 'Draft an application for leave'
     }
   ];
 
@@ -132,7 +146,7 @@ export const ChatView: React.FC = () => {
                   How can I help, {firstName}?
                 </h2>
                 <p className="text-sm text-brand-muted max-w-md mx-auto leading-relaxed">
-                  Ask me anything about MITS Gwalior academics, placements, campus policies, or discover teammates for upcoming hackathons.
+                  Ask me anything about MITS Gwalior academics, timetables, Centre for AI laboratories, faculty availability, or campus workflows.
                 </p>
               </div>
 
@@ -242,6 +256,122 @@ export const ChatView: React.FC = () => {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interactive Institutional Widgets */}
+                    {msg.widget && msg.widget.type === 'TIMETABLE_CARD' && (
+                      <div className="pt-2">
+                        <div className="rounded-2xl border border-brand-border/80 bg-brand-surface/40 p-4 space-y-3">
+                          <div className="flex items-center justify-between border-b border-brand-border/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-brand-secondary" />
+                              <span className="font-heading font-semibold text-xs text-brand-primary">
+                                {msg.widget.data.day} Schedule • {msg.widget.data.semester}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-brand-secondary bg-white px-2 py-0.5 rounded-full border border-brand-border/70">
+                              {msg.widget.data.classes?.length || 0} Lectures
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {msg.widget.data.classes?.map((c: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="p-2.5 rounded-xl bg-white border border-brand-border/60 flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-7 h-7 rounded-lg bg-brand-surface text-brand-secondary font-bold text-[11px] flex items-center justify-center shrink-0 border border-brand-borderSubtle">
+                                    P{c.period}
+                                  </span>
+                                  <div>
+                                    <div className="font-semibold text-brand-primary flex items-center gap-1.5">
+                                      <span>{c.subject}</span>
+                                      <span className="text-[10px] font-mono text-brand-muted">({c.course_code})</span>
+                                      {c.is_lab && (
+                                        <span className="text-[9px] font-bold uppercase tracking-wider bg-brand-softAccentLight text-brand-secondary px-1.5 py-0.2 rounded">
+                                          Lab
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-brand-muted mt-0.5">
+                                      Faculty: <span className="text-brand-primary font-medium">{c.faculty}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-stone-warm/50 text-[10px] font-mono font-semibold text-brand-primary border border-stone-border/60">
+                                    {c.room}
+                                  </span>
+                                  <div className="text-[10px] text-brand-muted mt-0.5">{c.time}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {msg.widget && msg.widget.type === 'FACULTY_AVAILABILITY_CARD' && (
+                      <div className="pt-2">
+                        <div className="rounded-2xl border border-brand-border/80 bg-brand-surface/40 p-4 space-y-3">
+                          <div className="flex items-center justify-between border-b border-brand-border/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-brand-accent" />
+                              <span className="font-heading font-semibold text-xs text-brand-primary">
+                                {msg.widget.data.day} • {msg.widget.data.slot_label} ({msg.widget.data.time_window})
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              {msg.widget.data.free_faculty_count} Available Faculty
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {msg.widget.data.free_faculty?.slice(0, 10).map((f: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-white border border-brand-borderSubtle text-brand-primary shadow-subtle"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span className="font-medium text-[11px]">{f.name}</span>
+                              </span>
+                            ))}
+                          </div>
+
+                          <p className="text-[11px] text-brand-muted italic border-t border-brand-border/40 pt-2 leading-relaxed">
+                            {msg.widget.data.disclaimer}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {msg.widget && msg.widget.type === 'COORDINATOR_CARD' && (
+                      <div className="pt-2">
+                        <div className="p-3.5 rounded-2xl bg-white border border-brand-border/80 shadow-subtle flex items-start justify-between">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary bg-brand-surface px-2 py-0.5 rounded border border-brand-borderSubtle">
+                              {msg.widget.data.year} Coordinator • {msg.widget.data.branch}
+                            </span>
+                            <h4 className="font-heading font-bold text-sm text-brand-primary pt-1">
+                              {msg.widget.data.name}
+                            </h4>
+                            <div className="flex items-center gap-3 text-xs text-brand-muted pt-1">
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3.5 h-3.5 text-brand-accent" />
+                                {msg.widget.data.contact_number}
+                              </span>
+                              <a
+                                href={`mailto:${msg.widget.data.institutional_email}`}
+                                className="flex items-center gap-1 text-brand-secondary hover:underline"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                {msg.widget.data.institutional_email}
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}

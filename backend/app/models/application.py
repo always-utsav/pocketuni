@@ -74,3 +74,19 @@ class ApplicationDocument(Base, CommonMixin):
     file_size_bytes = Column(Integer, nullable=False)
 
     application = relationship("Application", back_populates="documents")
+
+
+class ApplicationOutbox(Base, CommonMixin):
+    __tablename__ = "application_outbox"
+
+    data_source = Column(String(50), default="official", nullable=False)
+    application_id = Column(String(36), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipient_email = Column(String(255), nullable=False)
+    recipient_name = Column(String(255), nullable=False)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String(50), default="QUEUED", nullable=False, index=True)  # QUEUED, SENT_TO_PROVIDER, DELIVERED, FAILED
+    provider_response = Column(Text, nullable=True)
+    attempt_count = Column(Integer, default=0, nullable=False)
+    dispatched_at = Column(DateTime(timezone=True), nullable=True)
+

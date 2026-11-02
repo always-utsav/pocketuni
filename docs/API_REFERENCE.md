@@ -421,3 +421,57 @@ Returns the public institutional directory of MITS e-governance systems (AMS, MI
 ### `GET /website/stats`
 Telemetry summary returning total registered sources, crawled pages, extracted documents, and indexed RAG web chunks.
 - **Permissions**: `SUPER_ADMIN` only.
+
+---
+
+## 16. Avatar Privacy & Student Badge API (`/students/me/avatar`)
+
+### `POST /students/me/avatar`
+Uploads a voluntary profile photo or generates a deterministic SVG monogram vector badge based on the student's name initials.
+- **Permissions**: `STUDENT` only.
+- **Modes**:
+  - `generate_svg`: Generates a high-contrast vector badge stored locally in `storage/avatars/`.
+  - `upload`: Accepts `multipart/form-data` image file (`image/png`, `image/jpeg`).
+- **Response `200 OK`**:
+  ```json
+  {
+    "avatar_url": "/storage/avatars/usr_..._avatar.svg",
+    "updated_at": "2026-11-02T02:30:00Z",
+    "status": "success"
+  }
+  ```
+
+---
+
+## 17. Application Outbox & Transactional Queue (`/applications/outbox`)
+
+### `GET /applications/outbox/queue`
+Retrieves pending asynchronous dispatch records for submitted institutional applications.
+- **Permissions**: `SUPER_ADMIN` only.
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "id": "outbox_8f93ab01",
+      "application_id": "app_20261102_001",
+      "recipient_email": "dean_academics@mitsgwalior.in",
+      "template_name": "BONAFIDE_CERTIFICATE",
+      "status": "PENDING",
+      "retry_count": 0,
+      "created_at": "2026-11-02T07:45:00Z"
+    }
+  ]
+  ```
+
+---
+
+## 18. Academic Intelligence & Rich Intent Cards (`/chat`)
+
+### `POST /chat`
+Conversational endpoint intercepted by the Deterministic Intent Router. Returns structured interactive card widgets alongside Markdown responses:
+- **Payload Cards Supported**:
+  - `TIMETABLE_CARD`: Daily class schedule, period times, room numbers, and faculty codes.
+  - `FACULTY_AVAILABILITY_CARD`: Free/busy timetable state with Asia/Kolkata timezone disclaimer.
+  - `COORDINATOR_CARD`: Semester/section class coordinator office, contact, and designation.
+  - `LABORATORY_CARD`: Lab equipment, room location, and lab incharge details.
+

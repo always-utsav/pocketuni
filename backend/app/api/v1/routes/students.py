@@ -215,7 +215,7 @@ def discover_students(
                 studentId=user.id,
                 name=user.full_name,
                 email=user.email,
-                pictureUrl=user.picture_url or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+                pictureUrl=user.picture_url or None,
                 branch=user.branch or "Artificial Intelligence",
                 year=int(user.year_of_study) if user.year_of_study and str(user.year_of_study).isdigit() else 2,
                 rollNumber=user.roll_number,
@@ -231,3 +231,56 @@ def discover_students(
         )
 
     return cards
+
+
+@router.post("/me/avatar")
+async def upload_student_avatar(
+    current_user: User = Depends(require_student),
+    db: Session = Depends(get_db)
+):
+    """
+    Voluntary avatar upload or initials SVG generation.
+    Enforces privacy by not using stock Unsplash faces.
+    """
+    import os
+    from backend.app.core.config import settings
+
+    # Generate personalized institutional SVG avatar
+    initials = "".join([part[0] for part in current_user.full_name.split()[:2]]).upper() or "ST"
+    svg_avatar = f"""<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+      <rect width="128" height="128" fill="#202C39" rx="64"/>
+      <text x="64" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="600" fill="#F7F6F2" text-anchor="middle" dominant-baseline="middle">{initials}</text>
+    </svg>"""
+
+    avatar_dir = os.path.join(settings.STORAGE_DIR, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+    fname = f"avatar_{current_user.id}.svg"
+    fpath = os.path.join(avatar_dir, fname)
+
+    with open(fpath, "w", encoding="utf-8") as f:
+        f.write(svg_avatar)
+
+    avatar_url = f"/api/v1/students/me/avatar/file/{fname}"
+    current_user.picture_url = avatar_url
+    db.commit()
+
+    return {
+        "status": "SUCCESS",
+        "avatarUrl": avatar_url,
+        "message": "Avatar updated successfully."
+    }
+
+
+@router.get("/me/avatar/file/{filename}")
+def serve_avatar_file(filename: str):
+    import os
+    from fastapi.responses import FileResponse, Response
+    from backend.app.core.config import settings
+
+    fpath = os.path.join(settings.STORAGE_DIR, "avatars", filename)
+    if not os.path.exists(fpath):
+        # Return fallback SVG
+        svg = """<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" fill="#202C39" rx="64"/><text x="64" y="74" font-family="sans-serif" font-size="40" fill="#F7F6F2" text-anchor="middle" dominant-baseline="middle">PU</text></svg>"""
+        return Response(content=svg, media_type="image/svg+xml")
+
+    return FileResponse(fpath, media_type="image/svg+xml")

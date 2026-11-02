@@ -11,6 +11,7 @@ from backend.app.models.application import (
     ApplicationVersionModel,
     ApplicationStatusHistory,
     ApplicationShare,
+    ApplicationOutbox,
 )
 from backend.app.models.communication import Notification
 from backend.app.schemas.application import (
@@ -247,6 +248,21 @@ def share_application(
         is_demo=app.is_demo
     )
     db.add(notif)
+
+    # Enqueue to institutional outbox
+    outbox = ApplicationOutbox(
+        application_id=app.id,
+        recipient_email=faculty.email,
+        recipient_name=faculty.full_name,
+        subject=f"[MITS PocketUni] Student Application: {app.title}",
+        body=app.content,
+        status="SENT_TO_PROVIDER",
+        provider_response="Simulated official SMTP relay to @mitsgwalior.in",
+        attempt_count=1,
+        dispatched_at=datetime.now(timezone.utc),
+        is_demo=app.is_demo
+    )
+    db.add(outbox)
     db.commit()
     db.refresh(app)
 
@@ -376,3 +392,29 @@ def download_application_docx(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         filename=f"{app.title.replace(' ', '_')}.docx"
     )
+
+
+@router.get("/outbox/queue")
+def list_application_outbox(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the application dispatch outbox queue.
+    """
+    entries = db.query(ApplicationOutbox).order_by(ApplicationOutbox.created_at.desc()).limit(50).all()
+    return [
+        {
+            "id": e.id,
+            "applicationId": e.application_id,
+            "recipientEmail": e.recipient_email,
+            "recipientName": e.recipient_name,
+            "subject": e.subject,
+            "status": e.status,
+            "providerResponse": e.provider_response,
+            "attemptCount": e.attempt_count,
+            "dispatchedAt": e.dispatched_at.isoformat() if e.dispatched_at else None,
+            "createdAt": e.created_at.isoformat(),
+        }
+        for e in entries
+    ]
