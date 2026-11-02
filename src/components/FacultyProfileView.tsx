@@ -27,7 +27,7 @@ interface FacultyProfileViewProps {
 }
 
 export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFaculty }) => {
-  const { currentUser, selectedFaculty } = useApp();
+  const { currentUser, selectedFaculty, setSelectedFaculty } = useApp();
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportText, setReportText] = useState('');
@@ -73,8 +73,12 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
     }
   }, [customFaculty, selectedFaculty, currentUser?.id]);
 
-  // Determine which faculty profile to render
-  const faculty = loadedFaculty || customFaculty || selectedFaculty || MITS_FACULTY.find(f => f.emailPublic.toLowerCase() === currentUser?.email.toLowerCase()) || MITS_FACULTY[0];
+  // Determine which faculty profile to render with zero identity mismatch
+  const defaultFacultyForRole = currentUser?.role === 'faculty'
+    ? (MITS_FACULTY.find(f => f.emailPublic.toLowerCase() === currentUser?.email.toLowerCase()) || MITS_FACULTY[0])
+    : (selectedFaculty || MITS_FACULTY[0]);
+
+  const faculty = loadedFaculty || customFaculty || selectedFaculty || defaultFacultyForRole;
 
   const handleReportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +94,25 @@ export const FacultyProfileView: React.FC<FacultyProfileViewProps> = ({ customFa
   return (
     <div className="flex-1 overflow-y-auto bg-brand-surface/40 p-4 sm:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Faculty Sandbox Context Pill */}
+        {currentUser?.role === 'faculty' && selectedFaculty && selectedFaculty.emailPublic.toLowerCase() !== currentUser.email.toLowerCase() && (
+          <div className="px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-between text-xs text-amber-900 shadow-subtle">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>You are viewing directory profile for <strong>{faculty.name}</strong> ({faculty.department}).</span>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedFaculty(null);
+                setLoadedFaculty(null);
+              }}
+              className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors"
+            >
+              Return to My Profile
+            </button>
+          </div>
+        )}
+
         {/* Scraped Sync Banner (PRD Section 7.8 & FR-5.3) */}
         <div className="px-4 py-3 rounded-2xl bg-brand-surface border border-brand-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-brand-secondary font-medium">

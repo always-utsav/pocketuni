@@ -359,14 +359,21 @@ export const ApplicationAgentChat: React.FC = () => {
                           className="w-10 h-10 rounded-xl object-cover border border-brand-border shrink-0"
                         />
                         <div>
-                          <h4 className="font-heading font-semibold text-xs text-brand-primary">
-                            {prof.name}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-heading font-semibold text-xs text-brand-primary">
+                              {prof.name}
+                            </h4>
+                            {prof.emailPublic.toLowerCase().includes('mausam') && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                Designated Reviewer
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-brand-muted">
                             {prof.designation} • {prof.department}
                           </p>
                           <p className="text-[10px] text-brand-secondary font-medium">
-                            {prof.emailPublic}
+                            {prof.researchAreas && prof.researchAreas.length > 0 ? prof.researchAreas.slice(0, 2).join(' • ') : 'Academic Faculty'}
                           </p>
                         </div>
                       </div>

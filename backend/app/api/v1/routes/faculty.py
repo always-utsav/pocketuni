@@ -76,8 +76,16 @@ def get_my_faculty_profile(
     f = db.query(FacultyProfile).filter(FacultyProfile.user_id == current_user.id).first()
     if not f:
         f = db.query(FacultyProfile).filter(FacultyProfile.email_public == current_user.email).first()
+    if not f and current_user.full_name:
+        f = db.query(FacultyProfile).filter(FacultyProfile.name.ilike(f"%{current_user.full_name}%")).first()
+    
     if not f:
         raise HTTPException(status_code=404, detail="Faculty profile record not found.")
+
+    if not f.user_id or f.user_id != current_user.id:
+        f.user_id = current_user.id
+        db.commit()
+        db.refresh(f)
 
     return _serialize_faculty(f, current_user)
 

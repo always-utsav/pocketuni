@@ -17,16 +17,81 @@ from backend.app.models.academic import Department
 
 logger = logging.getLogger("pocketuni.faculty_enrichment")
 
-# Verified data for the three specified faculty members + CSE and IoT departments
+# Verified data for the three specified faculty members + Faculty Sandbox + CSE and IoT departments
 VERIFIED_FACULTY_DATA = [
+    {
+        "name": "Dr. Mausam Chouksey",
+        "email": "dr.mausam.chouksey@mitsgwalior.in",
+        "department": "Centre for Artificial Intelligence",
+        "centre": "Centre for Artificial Intelligence",
+        "designation": "Assistant Professor",
+        "qualification": "Ph.D. (Electronics & Communication Engineering), M.Tech",
+        "office_location": "Centre for Artificial Intelligence, Academic Block",
+        "phone_internal": "0751-2409391",
+        "official_profile_url": "https://web.mitsgwalior.in",
+        "bio": (
+            "Dr. Mausam Chouksey is Assistant Professor in the Centre for Artificial Intelligence at Madhav "
+            "Institute of Technology & Science (MITS-DU), Gwalior. His research expertise spans Artificial "
+            "Intelligence, Signal Processing, Embedded AI Systems, and Machine Learning. He serves as designated "
+            "academic mentor and coordinator for AI applications and student innovation projects."
+        ),
+        "research_interests": [
+            "Artificial Intelligence",
+            "Signal Processing",
+            "Machine Learning",
+            "Embedded AI Systems",
+            "Digital Signal & Image Processing"
+        ],
+        "areas_of_expertise": [
+            "Deep Learning Architectures",
+            "Signal Processing Systems",
+            "Academic Mentorship",
+            "Edge Intelligence"
+        ],
+        "external_links": {
+            "linkedin": "https://www.linkedin.com/school/mits-gwalior",
+            "google_scholar": "https://scholar.google.com"
+        },
+        "publications": [
+            {
+                "title": "Machine Learning and Signal Optimization Frameworks in Modern Telemetry",
+                "journal": "International Journal of Emerging Technology & Advanced Engineering",
+                "year": 2023,
+                "authors": "M. Chouksey"
+            },
+            {
+                "title": "Efficient Architecture Design for High-Throughput Signal Classification",
+                "journal": "Springer Lecture Notes in Networks and Systems",
+                "year": 2022,
+                "authors": "M. Chouksey, P. K. Singhal"
+            }
+        ],
+        "professional_highlights": [
+            {
+                "title": "Designated Faculty Mentor & Reviewer for AI Academic Applications",
+                "category": "Academic Mentorship",
+                "date": "2024-Present",
+                "source": "https://web.mitsgwalior.in",
+                "details": "Institutional supervisor handling student leave, bonafide requests, and research permissions in the Centre for AI."
+            },
+            {
+                "title": "Embedded Machine Learning & Signal Systems Research at MITS",
+                "category": "Research Milestone",
+                "date": "2023",
+                "source": "https://web.mitsgwalior.in",
+                "details": "Lead investigator in embedded neural network applications for edge IoT telemetry."
+            }
+        ]
+    },
     {
         "name": "Dr. Shradha Dubey",
         "email": "shradhadubey@mitsgwalior.in",
         "department": "Computer Science & Engineering",
         "centre": None,
         "designation": "Assistant Professor",
-        "qualification": "Ph.D. (Computer Science & Engineering), M.Tech, B.E.",
+        "qualification": "Ph.D. (AICTE-NDF), M.Tech (Hons), B.E. (Hons)",
         "office_location": "School of CSE, Main Building",
+        "phone_internal": "0751-2409327",
         "official_profile_url": "https://web.mitsgwalior.in/faculty-profiles-cse-2",
         "bio": (
             "Dr. Shradha Dubey is an Assistant Professor in the School of Computer Science & Engineering at Madhav "

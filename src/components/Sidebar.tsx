@@ -33,7 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
     deleteChat,
     renameChat,
     activeView,
-    setActiveView
+    setActiveView,
+    setSelectedFaculty
   } = useApp();
 
   const [chatSearch, setChatSearch] = useState('');
@@ -339,6 +340,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
         <div className="p-3 border-t border-[#12544F]/30 bg-[#06181c]">
           <button
             onClick={() => {
+              setSelectedFaculty(null);
               setActiveView('profile');
               setMobileOpen(false);
             }}

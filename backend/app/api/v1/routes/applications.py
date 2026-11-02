@@ -220,6 +220,12 @@ def share_application(
 
     faculty = db.query(User).filter(User.id == payload.facultyId).first()
     if not faculty:
+        fac_prof = db.query(FacultyProfile).filter(
+            (FacultyProfile.id == payload.facultyId) | (FacultyProfile.user_id == payload.facultyId) | (FacultyProfile.email_public == payload.facultyId)
+        ).first()
+        if fac_prof and fac_prof.user_id:
+            faculty = db.query(User).filter(User.id == fac_prof.user_id).first()
+    if not faculty:
         raise HTTPException(status_code=404, detail="Target faculty member not found.")
 
     prev_status = app.status

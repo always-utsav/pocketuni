@@ -176,6 +176,7 @@ class SandboxLoginRequest(BaseModel):
 def sandbox_login(
     payload: Optional[SandboxLoginRequest] = None,
     role: Optional[str] = Query(None),
+    persona: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -185,7 +186,7 @@ def sandbox_login(
     - FACULTY: CAI Faculty Member & Mentor
     Uses stable pre-existing IDs without creating duplicate accounts.
     """
-    req_role = (payload.role if payload else role or "STUDENT").strip().upper()
+    req_role = (payload.role if payload else role or persona or "STUDENT").strip().upper()
 
     if req_role in ["SUPER_ADMIN", "ADMIN"]:
         email = "utsavkumawat05@gmail.com"

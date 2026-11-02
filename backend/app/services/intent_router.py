@@ -86,6 +86,20 @@ class IntentRouter:
         ]):
             return "FACULTY_LOOKUP"
 
+        # 7. Greeting & Conversational Intent
+        greeting_words = {"hi", "hello", "hey", "namaste", "hola", "greetings", "good morning", "good afternoon", "good evening", "howdy", "sup"}
+        cleaned_words = re.sub(r'[^\w\s]', '', q).split()
+        if cleaned_words:
+            first_word = cleaned_words[0]
+            clean_str = " ".join(cleaned_words)
+            if clean_str in greeting_words or (first_word in greeting_words and len(cleaned_words) <= 4):
+                return "GREETING"
+        if any(p in q for p in [
+            "who are you", "what is pocketuni", "what can you do", "how can you help",
+            "tell me about yourself", "help me", "what are your features", "namaste"
+        ]):
+            return "GREETING"
+
         return "GENERAL_INSTITUTIONAL"
 
     def handle_intent(
@@ -103,6 +117,9 @@ class IntentRouter:
         if intent == "INSTITUTIONAL_LINK":
             return self._handle_institutional_link(query)
 
+        elif intent == "GREETING":
+            return self._handle_greeting(user)
+
         elif intent == "TIMETABLE_QUERY":
             return self._handle_timetable(db, query, user)
 
@@ -119,6 +136,32 @@ class IntentRouter:
             return self._handle_faculty_lookup(db, query)
 
         return None
+
+    def _handle_greeting(self, user: Optional[User] = None) -> Dict[str, Any]:
+        user_name = user.full_name if (user and user.full_name) else "there"
+        answer = (
+            f"Hello {user_name}! I am **PocketUni**, the official AI Academic Assistant for "
+            f"**Madhav Institute of Technology & Science (MITS-DU), Gwalior**.\n\n"
+            f"Here is how I can assist you right now:\n\n"
+            f"- 📅 **Timetable & Schedules**: Ask *\"What is my timetable tomorrow?\"* or *\"Which classes do I have on Monday?\"*\n"
+            f"- 👨‍🏫 **Faculty & Availability**: Ask *\"Who is free at 11 AM tomorrow?\"* or check faculty research interests.\n"
+            f"- 🔬 **Laboratories & Infrastructure**: Ask *\"Tell me about the Robotics or AR/VR lab in CAI\"*.\n"
+            f"- 🔗 **Official MITS Portals**: Ask for verified direct links to *Student IMS*, *Moodle*, *No Dues*, or *Alumni Portal*.\n"
+            f"- 📝 **Application Agent**: Ask *\"Draft a leave application\"* or request a bonafide certificate for review.\n\n"
+            f"How can I assist you today?"
+        )
+        return {
+            "answer": answer,
+            "intent": "GREETING",
+            "citations": [{
+                "title": "MITS Gwalior Academic & Research Portals",
+                "sourceUrl": "https://web.mitsgwalior.in",
+                "category": "PORTAL",
+                "page": 1,
+                "section": "Centre for Artificial Intelligence",
+                "snippet": "Official MITS Gwalior institutional assistant services and departmental coordination."
+            }]
+        }
 
     def _handle_institutional_link(self, query: str) -> Optional[Dict[str, Any]]:
         item = resolve_institutional_link(query)
